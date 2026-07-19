@@ -43,9 +43,11 @@ export default function PlanPage() {
   // Géolocalisation
   useEffect(() => {
     if (!navigator.geolocation) {
-      setGeolocError("La géolocalisation n'est pas disponible.");
-      setHasAskedGeolocation(true);
-      return;
+      const timer = setTimeout(() => {
+        setGeolocError("La géolocalisation n'est pas disponible.");
+        setHasAskedGeolocation(true);
+      }, 0);
+      return () => clearTimeout(timer);
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -55,7 +57,7 @@ export default function PlanPage() {
         };
         setUserLocation(coord);
         setHasAskedGeolocation(true);
-        if (!origin) setOrigin({ label: "Ma position", coord });
+        setOrigin((prev) => prev ?? { label: "Ma position", coord });
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
@@ -65,7 +67,6 @@ export default function PlanPage() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Charger les arrêts TBM au montage

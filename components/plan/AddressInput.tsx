@@ -26,7 +26,8 @@ export default function AddressInput({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastExternalLabel = useRef(value?.label ?? "");
 
   const accentColor =
     colorAccent === "green" ? "bg-mobility-green" : "bg-action-orange";
@@ -35,17 +36,21 @@ export default function AddressInput({
       ? "focus:ring-mobility-green"
       : "focus:ring-action-orange";
 
-  // Sync query avec value externe (ex : géoloc auto)
-  useEffect(() => {
-    setQuery(value?.label ?? "");
-  }, [value]);
+  // Sync query si la valeur externe change (ex : géoloc auto)
+  const externalLabel = value?.label ?? "";
+  if (externalLabel !== lastExternalLabel.current) {
+    lastExternalLabel.current = externalLabel;
+    if (externalLabel !== query) {
+      setQuery(externalLabel);
+      setSuggestions([]);
+    }
+  }
 
   // Debounce du géocodage
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (!query || query.trim().length < 3 || query === value?.label) {
-      setSuggestions([]);
       return;
     }
 
@@ -97,9 +102,13 @@ export default function AddressInput({
         value={query}
         placeholder={placeholder}
         onChange={(e) => {
-          setQuery(e.target.value);
+          const next = e.target.value;
+          setQuery(next);
           setIsOpen(true);
-          if (!e.target.value) onChange(null);
+          if (!next || next.trim().length < 3) {
+            setSuggestions([]);
+          }
+          if (!next) onChange(null);
         }}
         onFocus={() => setIsOpen(true)}
         autoComplete="off"
