@@ -18,8 +18,8 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-neutral-200">
+    <div className="h-screen flex flex-col overflow-hidden">
+      <header className="bg-white border-b border-neutral-200 shrink-0">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/plan"
@@ -68,7 +68,7 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 min-h-0">{children}</main>
     </div>
   );
 }

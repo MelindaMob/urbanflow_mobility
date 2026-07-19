@@ -1,73 +1,105 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl, { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Coord } from "@/types/mobility";
+import type { Coord, Itinerary, Mode, TransitStop } from "@/types/mobility";
 
-// Centre de Bordeaux (Place de la Bourse)
 const BORDEAUX_CENTER: [number, number] = [-0.5709, 44.841];
 const DEFAULT_ZOOM = 12;
+
+const MODE_COLORS: Record<Mode, string> = {
+  foot: "#059669",
+  bike: "#059669",
+  tram: "#0284C7",
+  bus: "#0284C7",
+  car: "#6B7280",
+  scooter: "#059669",
+};
 
 type MapViewProps = {
   origin?: Coord | null;
   destination?: Coord | null;
   userLocation?: Coord | null;
+  itinerary?: Itinerary | null;
+  transitStops?: TransitStop[];
 };
 
 export default function MapView({
   origin,
   destination,
   userLocation,
+  itinerary,
+  transitStops,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const originMarkerRef = useRef<Marker | null>(null);
   const destinationMarkerRef = useRef<Marker | null>(null);
   const userMarkerRef = useRef<Marker | null>(null);
+  const routeSourceIdsRef = useRef<string[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
-  // Initialisation de la carte (une seule fois)
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     const apiKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-    if (!apiKey) {
-      console.error("NEXT_PUBLIC_MAPTILER_KEY manquant");
-      return;
-    }
+    if (!apiKey) return;
+
+    const container = containerRef.current;
 
     const map = new maplibregl.Map({
-      container: containerRef.current,
+      container,
       style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${apiKey}`,
       center: BORDEAUX_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: { compact: true },
     });
 
-    // Contrôle de navigation (zoom in/out, boussole)
     map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-    // Contrôle de géolocalisation natif
     map.addControl(
       new maplibregl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: false,
       }),
       "top-right"
     );
 
+    const resizeMap = () => {
+      map.resize();
+    };
+
+    // Recalcule dès que le conteneur change de taille (fix Flexbox)
+    const resizeObserver = new ResizeObserver(() => {
+      resizeMap();
+    });
+    resizeObserver.observe(container);
+
+    map.on("load", () => {
+      resizeMap();
+      // Petit délai pour laisser le layout flex se stabiliser
+      requestAnimationFrame(() => {
+        resizeMap();
+        setMapReady(true);
+      });
+    });
+
+    window.addEventListener("resize", resizeMap);
+
     mapRef.current = map;
 
     return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", resizeMap);
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, []);
 
-  // Marqueur origine (vert)
+  // Marqueur origine — uniquement quand la carte est prête
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     if (originMarkerRef.current) {
       originMarkerRef.current.remove();
@@ -75,18 +107,16 @@ export default function MapView({
     }
 
     if (origin) {
-      originMarkerRef.current = new maplibregl.Marker({
-        color: "#059669", // mobility-green
-      })
+      originMarkerRef.current = new maplibregl.Marker({ color: "#059669" })
         .setLngLat([origin.lng, origin.lat])
         .addTo(map);
     }
-  }, [origin]);
+  }, [origin, mapReady]);
 
-  // Marqueur destination (orange)
+  // Marqueur destination
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     if (destinationMarkerRef.current) {
       destinationMarkerRef.current.remove();
@@ -94,18 +124,16 @@ export default function MapView({
     }
 
     if (destination) {
-      destinationMarkerRef.current = new maplibregl.Marker({
-        color: "#EA580C", // action-orange
-      })
+      destinationMarkerRef.current = new maplibregl.Marker({ color: "#EA580C" })
         .setLngLat([destination.lng, destination.lat])
         .addTo(map);
     }
-  }, [destination]);
+  }, [destination, mapReady]);
 
-  // Marqueur position utilisateur (bleu)
+  // Marqueur utilisateur
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     if (userMarkerRef.current) {
       userMarkerRef.current.remove();
@@ -113,42 +141,119 @@ export default function MapView({
     }
 
     if (userLocation) {
-      // Marqueur custom rond bleu
       const el = document.createElement("div");
-      el.style.width = "16px";
-      el.style.height = "16px";
-      el.style.borderRadius = "50%";
-      el.style.backgroundColor = "#0284C7"; // flow-blue
-      el.style.border = "3px solid white";
-      el.style.boxShadow = "0 0 0 4px rgba(2, 132, 199, 0.25)";
-
+      el.style.cssText =
+        "width:16px;height:16px;border-radius:50%;background:#0284C7;border:3px solid white;box-shadow:0 0 0 4px rgba(2,132,199,0.25)";
       userMarkerRef.current = new maplibregl.Marker({ element: el })
         .setLngLat([userLocation.lng, userLocation.lat])
         .addTo(map);
     }
-  }, [userLocation]);
+  }, [userLocation, mapReady]);
 
-  // Auto-centrage sur origine + destination si les deux sont définies
+  // Affichage des arrêts TBM
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !origin || !destination) return;
+    if (!map || !mapReady || !transitStops || transitStops.length === 0) return;
 
-    const bounds = new maplibregl.LngLatBounds()
-      .extend([origin.lng, origin.lat])
-      .extend([destination.lng, destination.lat]);
+    const sourceId = "tbm-stops";
+    const layerId = "tbm-stops-layer";
 
-    map.fitBounds(bounds, {
-      padding: { top: 80, bottom: 80, left: 80, right: 80 },
-      maxZoom: 15,
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    map.addSource(sourceId, {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: transitStops.map((stop) => ({
+          type: "Feature",
+          properties: { name: stop.name },
+          geometry: {
+            type: "Point",
+            coordinates: [stop.coord.lng, stop.coord.lat],
+          },
+        })),
+      },
     });
-  }, [origin, destination]);
+
+    map.addLayer({
+      id: layerId,
+      type: "circle",
+      source: sourceId,
+      minzoom: 12,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 6],
+        "circle-color": "#0284C7",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.5,
+        "circle-opacity": 0.8,
+      },
+    });
+  }, [transitStops, mapReady]);
+
+  // Tracé de l'itinéraire
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    map.resize();
+
+    routeSourceIdsRef.current.forEach((id) => {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    });
+    routeSourceIdsRef.current = [];
+
+    if (!itinerary) return;
+
+    itinerary.segments.forEach((segment, idx) => {
+      const id = `route-segment-${idx}`;
+      map.addSource(id, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: segment.geometry,
+        },
+      });
+      map.addLayer({
+        id,
+        type: "line",
+        source: id,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": MODE_COLORS[segment.mode],
+          "line-width": 5,
+          "line-opacity": 0.85,
+          "line-dasharray":
+            segment.mode === "foot" || segment.mode === "bike"
+              ? [2, 1.5]
+              : [1, 0],
+        },
+      });
+      routeSourceIdsRef.current.push(id);
+    });
+
+    const bounds = new maplibregl.LngLatBounds();
+    itinerary.segments.forEach((seg) => {
+      seg.geometry.coordinates.forEach((c) =>
+        bounds.extend(c as [number, number])
+      );
+    });
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, {
+        padding: { top: 80, bottom: 80, left: 80, right: 80 },
+        maxZoom: 15,
+      });
+    }
+  }, [itinerary, mapReady]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full"
+      className="absolute inset-0 w-full h-full"
       role="region"
-      aria-label="Carte interactive"
+      aria-label="Carte interactive de l'itinéraire"
     />
   );
 }

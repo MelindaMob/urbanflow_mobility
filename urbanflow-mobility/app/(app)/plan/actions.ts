@@ -1,6 +1,16 @@
 "use server";
 
-import type { GeocodedPlace } from "@/types/mobility";
+import type {
+  Coord,
+  GeocodedPlace,
+  Itinerary,
+  Mode,
+  TransitStop,
+} from "@/types/mobility";
+import { ORSAdapter } from "@/lib/adapters/ORSAdapter";
+import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
+import { TripService } from "@/lib/services/TripService";
+import { createClient } from "@/lib/supabase/server";
 
 // Bounding box de Bordeaux Métropole (rectangle géographique)
 // Format : [minLng, minLat, maxLng, maxLat]
@@ -58,4 +68,122 @@ export async function geocodeAddress(
   } catch {
     return { places: [], error: "Impossible de contacter le service." };
   }
+}
+
+export async function planTrip(
+  origin: Coord,
+  destination: Coord
+): Promise<{ itineraries: Itinerary[]; error?: string }> {
+  const apiKey = process.env.OPENROUTESERVICE_KEY;
+  if (!apiKey) {
+    return { itineraries: [], error: "Configuration serveur manquante." };
+  }
+
+  // Récupérer les préférences du user connecté
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let acceptedModes: Mode[] = ["foot", "bike", "tram", "bus"];
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("accepted_modes, reduced_mobility")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profile) {
+      acceptedModes = profile.accepted_modes as Mode[];
+      // RG-05 : mobilité réduite exclut vélo et trottinette
+      if (profile.reduced_mobility) {
+        acceptedModes = acceptedModes.filter(
+          (m) => m !== "bike" && m !== "scooter"
+        );
+      }
+    }
+  }
+
+  // Composition des services
+  const service = new TripService([new ORSAdapter(apiKey), new TBMAdapter()]);
+  const itineraries = await service.computeItineraries({
+    origin,
+    destination,
+    acceptedModes,
+  });
+
+  if (itineraries.length === 0) {
+    return {
+      itineraries: [],
+      error:
+        "Aucun itinéraire trouvé. Élargissez vos modes acceptés dans votre profil.",
+    };
+  }
+
+  return { itineraries };
+}
+
+export async function getTransitStops(): Promise<TransitStop[]> {
+  return TBMAdapter.fetchStops();
+}
+
+export async function saveTrip(
+  origin: GeocodedPlace,
+  destination: GeocodedPlace,
+  itinerary: Itinerary
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour sauvegarder un trajet." };
+  }
+
+  // Insérer le trajet parent
+  const { data: trip, error: tripError } = await supabase
+    .from("trips")
+    .insert({
+      user_id: user.id,
+      origin_label: origin.label,
+      origin_geom: `POINT(${origin.coord.lng} ${origin.coord.lat})`,
+      destination_label: destination.label,
+      destination_geom: `POINT(${destination.coord.lng} ${destination.coord.lat})`,
+      total_distance_m: itinerary.totalDistanceM,
+      total_duration_s: itinerary.totalDurationS,
+      total_co2_g: itinerary.totalCo2G,
+    })
+    .select("id")
+    .single();
+
+  if (tripError || !trip) {
+    console.error("Erreur insertion trip:", tripError);
+    return { error: "Impossible de sauvegarder le trajet." };
+  }
+
+  // Insérer les segments
+  const segmentsToInsert = itinerary.segments.map((seg, idx) => ({
+    trip_id: trip.id,
+    segment_order: idx,
+    mode: seg.mode,
+    distance_m: seg.distanceM,
+    duration_s: seg.durationS,
+    co2_g: seg.co2G,
+    geometry: `LINESTRING(${seg.geometry.coordinates
+      .map(([lng, lat]) => `${lng} ${lat}`)
+      .join(", ")})`,
+  }));
+
+  const { error: segmentsError } = await supabase
+    .from("trip_segments")
+    .insert(segmentsToInsert);
+
+  if (segmentsError) {
+    console.error("Erreur insertion segments:", segmentsError);
+    return { error: "Le trajet a été partiellement sauvegardé." };
+  }
+
+  return { success: true };
 }
