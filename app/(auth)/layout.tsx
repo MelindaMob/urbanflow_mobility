@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
-import AuthIllustration from "@/components/auth/AuthIllustration";
+import WelcomeRouteMap from "@/components/welcome/WelcomeRouteMap";
 
 export default function AuthLayout({
   children,
@@ -8,36 +8,52 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-neutral-50 md:bg-off-white">
+    <div className="min-h-screen grid lg:grid-cols-2 bg-white">
       {/* Panneau gauche — desktop */}
-      <div className="hidden md:flex md:w-5/12 lg:w-[45%] bg-white border-r border-neutral-100 relative overflow-hidden">
-        <div className="relative flex flex-col justify-between p-12 lg:p-16 w-full">
-          <Logo withText className="h-9 w-auto" />
+      <aside className="hidden lg:flex flex-col bg-[#F8FAFC] border-r border-neutral-100">
+        <div className="flex flex-col h-full p-10 xl:p-14">
+          <Link href="/welcome">
+            <Logo withText className="h-9 w-auto" />
+          </Link>
 
-          <div className="flex flex-col items-center py-8">
-            <AuthIllustration className="w-full max-w-sm h-auto mb-10" />
-            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-center leading-tight mb-4">
+          <div className="flex-1 flex flex-col justify-center py-10 max-w-md">
+            <div className="rounded-2xl bg-white border border-neutral-100 shadow-[0_8px_40px_rgba(0,0,0,0.06)] overflow-hidden mb-8">
+              <WelcomeRouteMap className="rounded-none" />
+            </div>
+
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-mobility-green mb-3">
+              Bordeaux · Mobilité durable
+            </p>
+            <h1 className="text-2xl xl:text-3xl font-bold tracking-tight leading-snug text-anthracite mb-3">
               Tous vos trajets,
               <br />
-              en un seul geste.
+              <span className="text-mobility-green">en un seul geste.</span>
             </h1>
-            <p className="text-sm text-neutral-500 text-center leading-relaxed max-w-sm">
-              Métro, tram, bus, trottinette et marche : UrbanFlow combine toutes les mobilités de Bordeaux en temps réel.
+            <p className="text-sm text-neutral-500 leading-relaxed">
+              Tram, bus, vélo et marche — planifiez le trajet le plus rapide et le moins carboné.
             </p>
           </div>
 
-          <p className="text-xs text-neutral-400 text-center">
+          <p className="text-xs text-neutral-400">
             Installable sur votre écran d&apos;accueil (PWA)
           </p>
         </div>
-      </div>
+      </aside>
 
       {/* Panneau droit — formulaire */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 py-10 sm:px-8 md:px-12">
-        <div className="w-full max-w-[400px] bg-white md:bg-transparent rounded-2xl md:rounded-none p-6 sm:p-8 md:p-0 shadow-sm md:shadow-none border border-neutral-100 md:border-0">
-          {children}
+      <main className="flex flex-col items-center justify-center min-h-screen px-5 py-10 sm:px-8 bg-white lg:bg-neutral-50/40">
+        <div className="w-full max-w-[420px]">
+          <div className="lg:hidden flex justify-center mb-8">
+            <Link href="/welcome">
+              <Logo withText className="h-8 w-auto" />
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-neutral-100 shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-7 sm:p-8">
+            {children}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

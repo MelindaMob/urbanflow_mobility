@@ -16,7 +16,7 @@ type AuthFieldProps = {
 
 function EnvelopeIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg viewBox="0 0 20 20" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="1.5">
       <rect x="2" y="4" width="16" height="12" rx="2" />
       <path d="M2 6l8 5 8-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -25,7 +25,7 @@ function EnvelopeIcon() {
 
 function LockIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg viewBox="0 0 20 20" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="1.5">
       <rect x="4" y="9" width="12" height="9" rx="2" />
       <path d="M7 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
     </svg>
@@ -44,15 +44,22 @@ export default function AuthField({
   hint,
 }: AuthFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword && showPassword ? "text" : type;
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-neutral-700 mb-2">
+      <label htmlFor={id} className="block text-sm font-medium text-neutral-700 mb-1.5">
         {label}
       </label>
-      <div className="relative">
+      <div
+        className={`relative rounded-xl border transition-all ${
+          focused
+            ? "border-mobility-green ring-2 ring-mobility-green/15 bg-white"
+            : "border-neutral-200 bg-neutral-50/80 hover:border-neutral-300"
+        }`}
+      >
         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
           {type === "email" ? <EnvelopeIcon /> : isPassword ? <LockIcon /> : null}
         </span>
@@ -64,13 +71,15 @@ export default function AuthField({
           autoComplete={autoComplete}
           minLength={minLength}
           placeholder={placeholder}
-          className={`w-full pl-10 ${isPassword ? "pr-16" : "pr-4"} py-3 bg-white border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-flow-blue/30 focus:border-flow-blue transition placeholder:text-neutral-400`}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          className={`auth-input w-full pl-10 ${isPassword ? "pr-16" : "pr-4"} py-3 bg-transparent rounded-xl text-sm text-neutral-900 focus:outline-none placeholder:text-neutral-400`}
         />
         {isPassword && (
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wide text-flow-blue hover:text-flow-blue/80 transition"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 hover:text-mobility-green transition"
           >
             {showPassword ? "Masquer" : "Voir"}
           </button>
