@@ -112,8 +112,8 @@ export default function PlanPage() {
     itineraries.find((it) => it.id === selectedItineraryId) ?? null;
 
   return (
-    <div className="h-[calc(100vh-57px)] flex flex-col md:flex-row overflow-hidden">
-      <aside className="w-full md:w-[420px] shrink-0 bg-white border-b md:border-b-0 md:border-r border-neutral-200 p-6 overflow-y-auto">
+    <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
+      <aside className="w-full md:w-[420px] md:shrink-0 bg-white border-b md:border-b-0 md:border-r border-neutral-200 p-6 md:max-h-screen md:overflow-y-auto">
         <h1 className="text-xl font-semibold mb-1">Où allez-vous ?</h1>
         <p className="text-sm text-neutral-500 mb-6">
           Trouvez le meilleur itinéraire multimodal
@@ -208,7 +208,10 @@ export default function PlanPage() {
         )}
       </aside>
 
-      <section className="flex-1 min-h-0 min-w-0 relative" aria-label="Carte">
+      <section
+        className="h-[50vh] min-h-[280px] md:flex-1 md:min-h-0 md:h-auto relative"
+        aria-label="Carte"
+      >
         {hasAskedGeolocation && (
           <MapView
             origin={origin?.coord ?? null}
