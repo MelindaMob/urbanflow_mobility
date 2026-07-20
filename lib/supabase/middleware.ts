@@ -40,7 +40,9 @@ export async function updateSession(request: NextRequest) {
 
   // Routes d'auth
   const isAuthRoute =
-    pathname.startsWith("/login") || pathname.startsWith("/signup");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/welcome");
 
   // Redirection si utilisateur non connecté vers route protégée
   if (!user && isProtectedRoute) {

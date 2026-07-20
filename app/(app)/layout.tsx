@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "../(auth)/actions";
 import SidebarNav from "@/components/layout/SidebarNav";
+import Logo from "@/components/ui/Logo";
 
 export default async function AppLayout({
   children,
@@ -44,14 +45,8 @@ export default async function AppLayout({
         </svg>
 
         <div className="relative px-6 pt-8 pb-6">
-          <Link href="/plan" className="block group">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-400">
-              Mobilité urbaine
-            </span>
-            <span className="mt-1 block text-2xl font-bold tracking-tight text-anthracite group-hover:text-mobility-green transition-colors">
-              Urban<span className="text-mobility-green">Flow</span>
-            </span>
-            <span className="mt-3 block h-0.5 w-12 rounded-full bg-gradient-to-r from-mobility-green to-flow-blue" />
+          <Link href="/plan" className="block">
+            <Logo withText className="h-8 w-auto" />
           </Link>
         </div>
 
@@ -82,10 +77,8 @@ export default async function AppLayout({
 
       {/* Header mobile */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
-        <Link href="/plan" className="flex items-baseline gap-1">
-          <span className="text-base font-bold text-anthracite">
-            Urban<span className="text-mobility-green">Flow</span>
-          </span>
+        <Link href="/plan">
+          <Logo withText className="h-7 w-auto" />
         </Link>
         <form action={logout}>
           <button type="submit" className="text-xs text-neutral-500 hover:text-action-orange">

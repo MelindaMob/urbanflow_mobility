@@ -11,5 +11,5 @@ export default async function HomePage() {
     redirect("/plan");
   }
 
-  redirect("/login");
+  redirect("/welcome");
 }
