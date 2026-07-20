@@ -26,8 +26,7 @@ export default async function CarbonPage() {
             Aucun trajet sauvegardé pour le moment.
           </p>
           <p className="text-sm text-neutral-500 mt-2">
-            Utilisez le planificateur et sauvegardez vos trajets pour voir
-            apparaître vos statistiques ici.
+            Utilisez le planificateur et sauvegardez vos trajets pour voir apparaître vos statistiques ici.
           </p>
         </div>
       </div>
@@ -42,26 +41,39 @@ export default async function CarbonPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-1">Mon empreinte carbone</h1>
         <p className="text-sm text-neutral-500">
-          Basée sur {stats.totalTripsCount} trajet
-          {stats.totalTripsCount > 1 ? "s" : ""} sauvegardé
-          {stats.totalTripsCount > 1 ? "s" : ""} · Facteurs ADEME
+          Basée sur {stats.totalTripsCount} trajet{stats.totalTripsCount > 1 ? "s" : ""} sauvegardé{stats.totalTripsCount > 1 ? "s" : ""} · Facteurs ADEME
         </p>
       </div>
 
       {/* KPI principal — CO2 évité */}
-      <div className="bg-gradient-to-br from-mobility-green to-emerald-700 text-white rounded-2xl p-8 mb-6 shadow-lg">
-        <p className="text-sm font-medium text-white/80 uppercase tracking-wide mb-2">
-          CO₂ économisé vs voiture
-        </p>
-        <div className="flex items-baseline gap-3 mb-4">
-          <p className="text-6xl font-bold">
-            {stats.co2VsCar > 0 ? `${stats.co2VsCar}%` : "0%"}
+      <div className="relative overflow-hidden bg-gradient-to-br from-mobility-green to-emerald-700 text-white rounded-2xl p-8 mb-6 shadow-lg">
+        {/* Vagues décoratives à droite */}
+        <svg
+          className="absolute right-0 top-0 h-full opacity-20"
+          width="240"
+          height="200"
+          viewBox="0 0 240 200"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M -20 100 Q 40 20, 100 100 T 220 100 T 340 100" stroke="white" strokeWidth="2" fill="none" />
+          <path d="M -20 130 Q 40 50, 100 130 T 220 130 T 340 130" stroke="white" strokeWidth="2" fill="none" />
+          <path d="M -20 160 Q 40 80, 100 160 T 220 160 T 340 160" stroke="white" strokeWidth="2" fill="none" />
+        </svg>
+        <div className="relative">
+          <p className="text-sm font-medium text-white/80 uppercase tracking-wide mb-2">
+            CO₂ économisé vs voiture
           </p>
-          <p className="text-lg text-white/80">de réduction</p>
+          <div className="flex items-baseline gap-3 mb-4">
+            <p className="text-6xl font-bold">
+              {stats.co2VsCar > 0 ? `${stats.co2VsCar}%` : "0%"}
+            </p>
+            <p className="text-lg text-white/80">de réduction</p>
+          </div>
+          <p className="text-sm text-white/80">
+            Équivalent à ~{equivalentKmCar} km non parcourus en voiture
+          </p>
         </div>
-        <p className="text-sm text-white/80">
-          Équivalent à ~{equivalentKmCar} km non parcourus en voiture
-        </p>
       </div>
 
       {/* Grille KPI secondaires */}
@@ -80,7 +92,9 @@ export default async function CarbonPage() {
           <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
             Distance parcourue
           </p>
-          <p className="text-3xl font-bold mt-1">{stats.totalDistanceKm}</p>
+          <p className="text-3xl font-bold mt-1">
+            {stats.totalDistanceKm}
+          </p>
           <p className="text-xs text-neutral-500 mt-1">kilomètres</p>
         </div>
 
@@ -104,11 +118,7 @@ export default async function CarbonPage() {
 
         <ul className="space-y-5">
           {stats.byMode.map((m) => {
-            const info = MODE_META[m.mode] ?? {
-              icon: "•",
-              label: m.mode,
-              color: "bg-neutral-400",
-            };
+            const info = MODE_META[m.mode] ?? { icon: "•", label: m.mode, color: "bg-neutral-400" };
             const widthPct = Math.round((m.co2G / maxCo2) * 100);
             return (
               <li key={m.mode}>

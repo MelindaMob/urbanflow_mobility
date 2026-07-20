@@ -2,13 +2,13 @@
 
 import type { Itinerary, Mode } from "@/types/mobility";
 
-const MODE_META: Record<Mode, { icon: string; label: string; color: string }> = {
-  foot: { icon: "🚶", label: "Marche", color: "text-mobility-green" },
-  bike: { icon: "🚲", label: "Vélo", color: "text-mobility-green" },
-  tram: { icon: "🚊", label: "Tram", color: "text-flow-blue" },
-  bus: { icon: "🚌", label: "Bus", color: "text-flow-blue" },
-  car: { icon: "🚗", label: "Voiture", color: "text-neutral-600" },
-  scooter: { icon: "🛴", label: "Trottinette", color: "text-mobility-green" },
+const MODE_META: Record<Mode, { label: string; color: string; dot: string }> = {
+  foot: { label: "Marche", color: "text-mobility-green", dot: "bg-mobility-green" },
+  bike: { label: "Vélo", color: "text-mobility-green", dot: "bg-mobility-green" },
+  tram: { label: "Tram", color: "text-flow-blue", dot: "bg-flow-blue" },
+  bus: { label: "Bus", color: "text-flow-blue", dot: "bg-flow-blue" },
+  car: { label: "Voiture", color: "text-neutral-600", dot: "bg-neutral-500" },
+  scooter: { label: "Trott.", color: "text-mobility-green", dot: "bg-mobility-green" },
 };
 
 function formatDuration(seconds: number): string {
@@ -47,42 +47,42 @@ export default function ItineraryCard({
       type="button"
       onClick={onSelect}
       aria-pressed={isSelected}
-      className={`w-full text-left rounded-xl p-4 transition-all ${
+      className={`w-full text-left rounded-xl p-4 transition-all group ${
         isSelected
-          ? "bg-white border-2 border-mobility-green shadow-md"
-          : "bg-white border border-neutral-200 hover:border-neutral-300 hover:shadow-sm"
+          ? "bg-white border-2 border-anthracite shadow-sm"
+          : "bg-white border border-neutral-200 hover:border-neutral-300"
       }`}
     >
-      {isRecommended && (
-        <div className="inline-flex items-center gap-1 bg-mobility-green text-white text-xs font-semibold px-2.5 py-1 rounded-full mb-3">
-          <span>★</span>
-          <span>Recommandé</span>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <div className="text-2xl font-bold tracking-tight">
+              {formatDuration(itinerary.totalDurationS)}
+            </div>
+            <div className="text-xs text-neutral-400 tabular-nums">
+              · {formatDistance(itinerary.totalDistanceM)}
+            </div>
+          </div>
         </div>
-      )}
-
-      <div className="flex items-baseline justify-between mb-3">
-        <div className="text-2xl font-bold">
-          {formatDuration(itinerary.totalDurationS)}
-        </div>
-        <div className="text-xs text-neutral-500">
-          {formatDistance(itinerary.totalDistanceM)}
-        </div>
+        {isRecommended && (
+          <div className="inline-flex items-center gap-1 border border-mobility-green text-mobility-green text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded">
+            Optimal
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center flex-wrap gap-1.5 text-sm mb-3">
+      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs mb-3">
         {itinerary.segments.map((seg, idx) => {
           const meta = MODE_META[seg.mode];
           return (
-            <span key={idx} className="flex items-center gap-1">
-              <span title={meta.label} className="text-base">
-                {meta.icon}
-              </span>
-              <span className={`text-xs font-medium ${meta.color}`}>
+            <span key={idx} className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} aria-hidden="true" />
+              <span className={`font-medium ${meta.color}`}>{meta.label}</span>
+              <span className="text-neutral-500 tabular-nums">
                 {formatDuration(seg.durationS)}
-                {seg.meta?.lineCode ? ` · ${seg.meta.lineCode}` : ""}
               </span>
               {idx < itinerary.segments.length - 1 && (
-                <span className="text-neutral-300 mx-0.5">›</span>
+                <span className="text-neutral-300 ml-1">/</span>
               )}
             </span>
           );
@@ -90,17 +90,15 @@ export default function ItineraryCard({
       </div>
 
       <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-mobility-green"></span>
-          <span className="text-neutral-600 font-medium">
-            {itinerary.totalCo2G === 0
-              ? "0 CO₂"
-              : `${formatCo2(itinerary.totalCo2G)} CO₂`}
+        <div className="text-xs text-neutral-500">
+          <span className="tabular-nums">
+            {itinerary.totalCo2G === 0 ? "0" : formatCo2(itinerary.totalCo2G)}
           </span>
+          <span className="ml-1">CO₂</span>
         </div>
         {itinerary.totalCo2G === 0 && (
-          <span className="text-xs text-mobility-green font-semibold">
-            100 % bas-carbone
+          <span className="text-[10px] uppercase tracking-wider text-mobility-green font-semibold">
+            Bas carbone
           </span>
         )}
       </div>

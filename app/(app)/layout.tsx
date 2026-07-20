@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "../(auth)/actions";
+import SidebarNav from "@/components/layout/SidebarNav";
 
 export default async function AppLayout({
   children,
@@ -13,120 +14,108 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
   const initials = user.email?.slice(0, 2).toUpperCase() ?? "??";
 
   return (
     <div className="min-h-screen flex bg-off-white">
-      {/* Sidebar */}
-      <aside className="hidden md:flex md:flex-col w-64 bg-anthracite text-white">
-        <div className="px-6 py-6 border-b border-white/10">
-          <Link href="/plan" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-mobility-green flex items-center justify-center font-bold text-lg">
-              U
-            </div>
-            <span className="text-xl font-semibold">UrbanFlow</span>
+      {/* Sidebar desktop — style clair, cartes */}
+      <aside className="hidden md:flex md:flex-col w-72 shrink-0 bg-white border-r border-neutral-200 relative overflow-hidden">
+        {/* Accent vertical dégradé */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-mobility-green via-flow-blue to-action-orange"
+          aria-hidden="true"
+        />
+
+        {/* Courbe décorative bas-gauche */}
+        <svg
+          className="absolute -bottom-16 -left-8 w-64 h-64 text-mobility-green/5 pointer-events-none"
+          viewBox="0 0 200 200"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M-20 120 Q 60 40, 140 100 T 260 80"
+            stroke="currentColor"
+            strokeWidth="24"
+            strokeLinecap="round"
+          />
+        </svg>
+
+        <div className="relative px-6 pt-8 pb-6">
+          <Link href="/plan" className="block group">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-400">
+              Mobilité urbaine
+            </span>
+            <span className="mt-1 block text-2xl font-bold tracking-tight text-anthracite group-hover:text-mobility-green transition-colors">
+              Urban<span className="text-mobility-green">Flow</span>
+            </span>
+            <span className="mt-3 block h-0.5 w-12 rounded-full bg-gradient-to-r from-mobility-green to-flow-blue" />
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          <NavLink href="/plan" icon="🗺️" label="Planificateur" />
-          <NavLink href="/history" icon="📍" label="Trajets sauvegardés" />
-          <NavLink href="/carbon" icon="🌱" label="Empreinte carbone" />
-          <NavLink href="/profile" icon="⚙️" label="Préférences" />
-        </nav>
+        <SidebarNav />
 
-        <div className="border-t border-white/10 p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-mobility-green flex items-center justify-center text-sm font-semibold">
-              {initials}
+        <div className="relative p-4 mt-auto">
+          <div className="rounded-2xl bg-anthracite text-white p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-mobility-green to-flow-blue flex items-center justify-center text-sm font-bold shrink-0">
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-white/50 mb-0.5">Connecté</p>
+                <p className="text-sm font-medium truncate">{user.email}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user.email}</p>
-              <p className="text-xs text-white/50">Utilisateur</p>
-            </div>
+            <form action={logout} className="mt-4 pt-3 border-t border-white/10">
+              <button
+                type="submit"
+                className="w-full text-left text-xs text-white/60 hover:text-action-orange transition"
+              >
+                Se déconnecter →
+              </button>
+            </form>
           </div>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="w-full text-sm text-white/70 hover:text-action-orange transition text-left"
-            >
-              Déconnexion
-            </button>
-          </form>
         </div>
       </aside>
 
       {/* Header mobile */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-anthracite text-white px-4 py-3 flex items-center justify-between">
-        <Link href="/plan" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-mobility-green flex items-center justify-center font-bold">
-            U
-          </div>
-          <span className="font-semibold">UrbanFlow</span>
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
+        <Link href="/plan" className="flex items-baseline gap-1">
+          <span className="text-base font-bold text-anthracite">
+            Urban<span className="text-mobility-green">Flow</span>
+          </span>
         </Link>
         <form action={logout}>
-          <button type="submit" className="text-sm text-white/70">
+          <button type="submit" className="text-xs text-neutral-500 hover:text-action-orange">
             Déconnexion
           </button>
         </form>
       </header>
 
       {/* Nav mobile en bas */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-neutral-200 flex justify-around py-2">
-        <MobileNavLink href="/plan" icon="🗺️" label="Planif." />
-        <MobileNavLink href="/history" icon="📍" label="Trajets" />
-        <MobileNavLink href="/carbon" icon="🌱" label="Impact" />
-        <MobileNavLink href="/profile" icon="⚙️" label="Profil" />
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-neutral-200 flex justify-around py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+        <MobileNavLink href="/plan" label="Planif." />
+        <MobileNavLink href="/history" label="Trajets" />
+        <MobileNavLink href="/carbon" label="Impact" />
+        <MobileNavLink href="/profile" label="Profil" />
       </nav>
 
-      {/* Contenu principal */}
-      <main className="flex-1 md:ml-0 pt-14 pb-16 md:pt-0 md:pb-0 min-h-0">
+      <main className="flex-1 pt-14 pb-16 md:pt-0 md:pb-0 min-h-0">
         {children}
       </main>
     </div>
   );
 }
 
-function NavLink({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: string;
-  label: string;
-}) {
+function MobileNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-3 py-2 rounded-md text-white/80 hover:bg-white/10 hover:text-white transition text-sm"
+      className="px-4 py-1 text-neutral-500 hover:text-mobility-green text-xs font-semibold transition-colors"
     >
-      <span className="text-base">{icon}</span>
-      <span>{label}</span>
-    </Link>
-  );
-}
-
-function MobileNavLink({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: string;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-col items-center gap-0.5 px-3 py-1 text-neutral-600 hover:text-mobility-green text-xs"
-    >
-      <span className="text-lg">{icon}</span>
-      <span>{label}</span>
+      {label}
     </Link>
   );
 }
