@@ -1,10 +1,13 @@
-import type { Coord, Itinerary, Segment, Mode } from "@/types/mobility";
+import type { Coord, Itinerary, Segment, Mode, TransitStop, TransitLine } from "@/types/mobility";
 import type { IRoutingProvider } from "@/lib/adapters/IRoutingProvider";
+import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
 
 export type ComputeItinerariesInput = {
   origin: Coord;
   destination: Coord;
   acceptedModes: Mode[];
+  transitStops: TransitStop[];
+  transitLines: TransitLine[];
 };
 
 export class TripService {
@@ -14,71 +17,62 @@ export class TripService {
     this.providers = providers;
   }
 
-  async computeItineraries(
-    input: ComputeItinerariesInput
-  ): Promise<Itinerary[]> {
-    const { origin, destination, acceptedModes } = input;
-
-    // Stratégie de composition : on génère 3 itinéraires typiques
-    // 1. Tout à pied (si accepté)
-    // 2. Tout à vélo (si accepté)
-    // 3. Multimodal : marche jusqu'au point médian + tram + marche
-
+  async computeItineraries(input: ComputeItinerariesInput): Promise<Itinerary[]> {
+    const { origin, destination, acceptedModes, transitStops, transitLines } = input;
     const itineraries: Itinerary[] = [];
 
-    // === Itinéraire 1 : tout à pied ===
     if (acceptedModes.includes("foot")) {
       const seg = await this.compute(origin, destination, "foot");
       if (seg) itineraries.push(this.wrap("foot-only", [seg]));
     }
 
-    // === Itinéraire 2 : tout à vélo ===
     if (acceptedModes.includes("bike")) {
       const seg = await this.compute(origin, destination, "bike");
       if (seg) itineraries.push(this.wrap("bike-only", [seg]));
     }
 
-    // === Itinéraire 3 : multimodal marche + tram + marche ===
-    if (acceptedModes.includes("tram") && acceptedModes.includes("foot")) {
-      // Points intermédiaires : à ~1/4 et 3/4 de la distance
-      const midStart: Coord = {
-        lat: origin.lat + (destination.lat - origin.lat) * 0.25,
-        lng: origin.lng + (destination.lng - origin.lng) * 0.25,
-      };
-      const midEnd: Coord = {
-        lat: origin.lat + (destination.lat - origin.lat) * 0.75,
-        lng: origin.lng + (destination.lng - origin.lng) * 0.75,
-      };
+    if (
+      (acceptedModes.includes("tram") || acceptedModes.includes("bus")) &&
+      acceptedModes.includes("foot") &&
+      transitStops.length > 0 &&
+      transitLines.length > 0
+    ) {
+      const option = TBMAdapter.findBestTransitOption(
+        origin,
+        destination,
+        transitStops,
+        transitLines
+      );
 
-      // Appels parallèles = argument perf du dossier (bloc "par" du diagramme séquence)
-      const [walkStart, tram, walkEnd] = await Promise.all([
-        this.compute(origin, midStart, "foot"),
-        this.compute(midStart, midEnd, "tram"),
-        this.compute(midEnd, destination, "foot"),
-      ]);
+      if (option) {
+        const mode: "tram" | "bus" = option.line.name.startsWith("Tram") ? "tram" : "bus";
 
-      if (walkStart && tram && walkEnd) {
-        itineraries.push(
-          this.wrap("multimodal-tram", [walkStart, tram, walkEnd])
+        const [walkStart, walkEnd] = await Promise.all([
+          this.compute(origin, option.originStop.coord, "foot"),
+          this.compute(option.destStop.coord, destination, "foot"),
+        ]);
+
+        const transitSeg = TBMAdapter.computeTransitSegment(
+          option.originStop,
+          option.destStop,
+          option.line,
+          mode
         );
+
+        if (walkStart && walkEnd) {
+          itineraries.push(
+            this.wrap(`multimodal-${mode}`, [walkStart, transitSeg, walkEnd])
+          );
+        }
       }
     }
 
-    // Tri par défaut : durée croissante
     itineraries.sort((a, b) => a.totalDurationS - b.totalDurationS);
-
     return itineraries;
   }
 
-  private async compute(
-    from: Coord,
-    to: Coord,
-    mode: Mode
-  ): Promise<Segment | null> {
-    // Trouve le premier provider qui gère ce mode
-    const provider = this.providers.find((p) =>
-      p.supportedModes.includes(mode)
-    );
+  private async compute(from: Coord, to: Coord, mode: Mode): Promise<Segment | null> {
+    const provider = this.providers.find((p) => p.supportedModes.includes(mode));
     if (!provider) return null;
     return provider.computeSegment(from, to, mode);
   }

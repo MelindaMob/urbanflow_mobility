@@ -12,33 +12,27 @@ import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
 import { TripService } from "@/lib/services/TripService";
 import { createClient } from "@/lib/supabase/server";
 
-// Bounding box de Bordeaux Métropole (rectangle géographique)
-// Format : [minLng, minLat, maxLng, maxLat]
-const BORDEAUX_BBOX = [-0.75, 44.75, -0.42, 44.98];
-
 export async function geocodeAddress(
   query: string
 ): Promise<{ places: GeocodedPlace[]; error?: string }> {
-  if (!query || query.trim().length < 3) {
+  if (!query || query.trim().length < 2) {
     return { places: [] };
   }
 
-  const apiKey = process.env.OPENROUTESERVICE_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   if (!apiKey) {
     return { places: [], error: "Configuration serveur manquante." };
   }
 
   try {
-    const url = new URL(
-      "https://api.openrouteservice.org/geocode/autocomplete"
-    );
-    url.searchParams.set("api_key", apiKey);
-    url.searchParams.set("text", query);
-    url.searchParams.set("boundary.rect.min_lon", BORDEAUX_BBOX[0].toString());
-    url.searchParams.set("boundary.rect.min_lat", BORDEAUX_BBOX[1].toString());
-    url.searchParams.set("boundary.rect.max_lon", BORDEAUX_BBOX[2].toString());
-    url.searchParams.set("boundary.rect.max_lat", BORDEAUX_BBOX[3].toString());
-    url.searchParams.set("size", "5"); // 5 suggestions max
+    const encoded = encodeURIComponent(query.trim());
+    const url = new URL(`https://api.maptiler.com/geocoding/${encoded}.json`);
+    url.searchParams.set("key", apiKey);
+    url.searchParams.set("language", "fr");
+    url.searchParams.set("limit", "8");
+    // Bias Bordeaux Métropole (adresses + établissements)
+    url.searchParams.set("proximity", "-0.5792,44.8378");
+    url.searchParams.set("bbox", "-0.85,44.70,-0.35,45.05");
 
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json" },
@@ -50,19 +44,36 @@ export async function geocodeAddress(
 
     const data = await response.json();
 
-    // Le format ORS retourne des "features" GeoJSON
+    // MapTiler (format Mapbox-compatible) : place_name + center [lng, lat]
+    const houseMatch = query.trim().match(/^(\d+)\s+/);
+    const houseNumber = houseMatch?.[1];
+
     const places: GeocodedPlace[] = (data.features || []).map(
       (f: {
-        properties: { label: string };
-        geometry: { coordinates: [number, number] };
-      }) => ({
-        label: f.properties.label,
-        coord: {
-          lng: f.geometry.coordinates[0],
-          lat: f.geometry.coordinates[1],
-        },
-      })
-    );
+        place_name?: string;
+        text?: string;
+        center?: [number, number];
+        geometry?: { coordinates: [number, number] };
+      }) => {
+        let label = f.place_name || f.text || query;
+        // Si l'utilisateur a tapé un numéro et que le résultat ne le contient pas, on le préfixe
+        if (
+          houseNumber &&
+          !label.trim().startsWith(houseNumber) &&
+          /boulevard|avenue|rue|bd|av\.|all[eé]e|place|chemin/i.test(label)
+        ) {
+          label = `${houseNumber} ${label}`;
+        }
+        const coords = f.center ?? f.geometry?.coordinates;
+        return {
+          label,
+          coord: {
+            lng: coords?.[0] ?? 0,
+            lat: coords?.[1] ?? 0,
+          },
+        };
+      }
+    ).filter((p: GeocodedPlace) => p.coord.lat !== 0 || p.coord.lng !== 0);
 
     return { places };
   } catch {
@@ -79,7 +90,6 @@ export async function planTrip(
     return { itineraries: [], error: "Configuration serveur manquante." };
   }
 
-  // Récupérer les préférences du user connecté
   const supabase = await createClient();
   const {
     data: { user },
@@ -92,31 +102,33 @@ export async function planTrip(
       .select("accepted_modes, reduced_mobility")
       .eq("user_id", user.id)
       .single();
-
     if (profile) {
       acceptedModes = profile.accepted_modes as Mode[];
-      // RG-05 : mobilité réduite exclut vélo et trottinette
       if (profile.reduced_mobility) {
-        acceptedModes = acceptedModes.filter(
-          (m) => m !== "bike" && m !== "scooter"
-        );
+        acceptedModes = acceptedModes.filter((m) => m !== "bike" && m !== "scooter");
       }
     }
   }
 
-  // Composition des services
+  // Récupération des vraies données TBM (arrêts + lignes)
+  const [transitStops, transitLines] = await Promise.all([
+    TBMAdapter.fetchStops(),
+    TBMAdapter.fetchLines(),
+  ]);
+
   const service = new TripService([new ORSAdapter(apiKey), new TBMAdapter()]);
   const itineraries = await service.computeItineraries({
     origin,
     destination,
     acceptedModes,
+    transitStops,
+    transitLines,
   });
 
   if (itineraries.length === 0) {
     return {
       itineraries: [],
-      error:
-        "Aucun itinéraire trouvé. Élargissez vos modes acceptés dans votre profil.",
+      error: "Aucun itinéraire trouvé. Élargissez vos modes acceptés dans votre profil.",
     };
   }
 

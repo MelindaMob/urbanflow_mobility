@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import AddressInput from "@/components/plan/AddressInput";
 import ItineraryCard from "@/components/plan/ItineraryCard";
+import TripGuidance from "@/components/plan/TripGuidance";
 import { planTrip, getTransitStops, saveTrip } from "./actions";
 import type {
   Coord,
@@ -39,6 +40,8 @@ export default function PlanPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [isGuiding, setIsGuiding] = useState(false);
+  const [hasArrived, setHasArrived] = useState(false);
 
   // Géolocalisation
   useEffect(() => {
@@ -80,6 +83,8 @@ export default function PlanPage() {
     setSearchError(null);
     setItineraries([]);
     setSelectedItineraryId(null);
+    setIsGuiding(false);
+    setHasArrived(false);
 
     const result = await planTrip(origin.coord, destination.coord);
 
@@ -113,7 +118,8 @@ export default function PlanPage() {
 
   return (
     <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
-      <aside className="w-full md:w-[420px] md:shrink-0 bg-white border-b md:border-b-0 md:border-r border-neutral-200 p-6 md:max-h-screen md:overflow-y-auto">
+      <aside className="w-full md:w-[420px] md:shrink-0 bg-white border-b md:border-b-0 md:border-r border-neutral-200 md:max-h-screen md:overflow-y-auto">
+        <div className="p-6 overflow-visible">
         <h1 className="text-xl font-semibold mb-1">Où allez-vous ?</h1>
         <p className="text-sm text-neutral-500 mb-6">
           Trouvez le meilleur itinéraire multimodal
@@ -192,6 +198,18 @@ export default function PlanPage() {
             >
               Sauvegarder ce trajet
             </button>
+            {!isGuiding && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHasArrived(false);
+                  setIsGuiding(true);
+                }}
+                className="mt-3 w-full bg-mobility-green text-white font-medium py-2.5 rounded-md hover:opacity-90 transition"
+              >
+                Démarrer ce trajet
+              </button>
+            )}
             {saveMessage && (
               <p
                 role="status"
@@ -206,6 +224,7 @@ export default function PlanPage() {
             )}
           </div>
         )}
+        </div>
       </aside>
 
       <section
@@ -220,6 +239,33 @@ export default function PlanPage() {
             itinerary={selectedItinerary}
             transitStops={transitStops}
           />
+        )}
+
+        {isGuiding && selectedItinerary && !hasArrived && (
+          <TripGuidance
+            itinerary={selectedItinerary}
+            onPositionUpdate={setUserLocation}
+            onExit={() => setIsGuiding(false)}
+            onArrived={() => setHasArrived(true)}
+          />
+        )}
+
+        {isGuiding && hasArrived && (
+          <div className="absolute bottom-0 left-0 right-0 z-10 bg-white border-t border-neutral-200 rounded-t-2xl shadow-lg p-5 text-center">
+            <p className="text-lg font-semibold text-mobility-green mb-1">
+              Vous êtes arrivé(e) 🎉
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsGuiding(false);
+                setHasArrived(false);
+              }}
+              className="mt-2 text-sm text-neutral-500 underline"
+            >
+              Fermer
+            </button>
+          </div>
         )}
       </section>
     </div>

@@ -1,39 +1,51 @@
 import type { Coord, Mode, Segment, TransitLine, TransitStop } from "@/types/mobility";
 import type { IRoutingProvider } from "./IRoutingProvider";
+import { haversineDistance } from "@/lib/geo";
 
 const TRAM_SPEED_KMH = 20;
+const BUS_SPEED_KMH = 18;
 const CO2_TRAM = 4;
-
+const CO2_BUS = 95;
 const TBM_API_KEY = "opendata-bordeaux-metropole-flux-gtfs-rt";
 const TBM_BASE = "https://bdx.mecatran.com/utw/ws/siri/2.0/bordeaux";
 
-function haversineDistance(a: Coord, b: Coord): number {
-  const R = 6371000;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
+export type TransitOption = {
+  originStop: TransitStop;
+  destStop: TransitStop;
+  line: TransitLine;
+};
 
 export class TBMAdapter implements IRoutingProvider {
   readonly supportedModes = ["tram", "bus"] as const;
 
+  // Conservé pour respecter l'interface IRoutingProvider, mais plus utilisé
+  // en pratique : le vrai calcul passe par computeTransitSegment() ci-dessous,
+  // qui a besoin des vrais arrêts/lignes (voir TripService).
   async computeSegment(
-    from: Coord,
-    to: Coord,
+    _from: Coord,
+    _to: Coord,
     mode: Mode
   ): Promise<Segment | null> {
     if (mode !== "tram" && mode !== "bus") return null;
+    return null;
+  }
 
-    const distanceM = Math.round(haversineDistance(from, to) * 1.3);
-    const durationS =
-      Math.round((distanceM / 1000 / TRAM_SPEED_KMH) * 3600) + 120;
-    const co2G = Math.round((distanceM / 1000) * CO2_TRAM);
+  /**
+   * Construit un segment de transport réel entre deux arrêts TBM,
+   * sur une ligne identifiée.
+   */
+  static computeTransitSegment(
+    originStop: TransitStop,
+    destStop: TransitStop,
+    line: TransitLine,
+    mode: "tram" | "bus"
+  ): Segment {
+    const distanceM = Math.round(haversineDistance(originStop.coord, destStop.coord) * 1.3);
+    const speed = mode === "tram" ? TRAM_SPEED_KMH : BUS_SPEED_KMH;
+    const co2Factor = mode === "tram" ? CO2_TRAM : CO2_BUS;
+    // + temps d'attente moyen à l'arrêt (3 min)
+    const durationS = Math.round((distanceM / 1000 / speed) * 3600) + 180;
+    const co2G = Math.round((distanceM / 1000) * co2Factor);
 
     return {
       mode,
@@ -43,33 +55,84 @@ export class TBMAdapter implements IRoutingProvider {
       geometry: {
         type: "LineString",
         coordinates: [
-          [from.lng, from.lat],
-          [to.lng, to.lat],
+          [originStop.coord.lng, originStop.coord.lat],
+          [destStop.coord.lng, destStop.coord.lat],
         ],
       },
       meta: {
-        lineCode: mode === "tram" ? "Tram" : "Bus",
-        lineName: "Ligne TBM",
+        lineCode: line.code,
+        lineName: line.name,
+        fromStopName: originStop.name,
+        toStopName: destStop.name,
       },
     };
   }
 
   /**
-   * Récupère toutes les lignes du réseau TBM via SIRI-Lite lines-discovery
+   * Trouve les N arrêts les plus proches d'un point.
    */
+  static findNearestStops(
+    stops: TransitStop[],
+    coord: Coord,
+    limit = 6
+  ): TransitStop[] {
+    return [...stops]
+      .map((stop) => ({ stop, dist: haversineDistance(coord, stop.coord) }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, limit)
+      .map((x) => x.stop);
+  }
+
+  /**
+   * Cherche la meilleure combinaison arrêt de départ / arrêt d'arrivée / ligne
+   * commune, parmi les arrêts proches de l'origine et de la destination.
+   */
+  static findBestTransitOption(
+    origin: Coord,
+    destination: Coord,
+    stops: TransitStop[],
+    lines: TransitLine[]
+  ): TransitOption | null {
+    const nearOrigin = this.findNearestStops(stops, origin, 6);
+    const nearDest = this.findNearestStops(stops, destination, 6);
+
+    let best: TransitOption | null = null;
+    let bestScore = Infinity;
+
+    for (const originStop of nearOrigin) {
+      for (const destStop of nearDest) {
+        if (originStop.id === destStop.id) continue;
+        const commonRef = originStop.lines.find((ref) =>
+          destStop.lines.includes(ref)
+        );
+        if (!commonRef) continue;
+        const line = lines.find((l) => l.ref === commonRef);
+        if (!line) continue;
+
+        const score =
+          haversineDistance(origin, originStop.coord) +
+          haversineDistance(destination, destStop.coord);
+
+        if (score < bestScore) {
+          bestScore = score;
+          best = { originStop, destStop, line };
+        }
+      }
+    }
+
+    return best;
+  }
+
   static async fetchLines(): Promise<TransitLine[]> {
     try {
       const url = `${TBM_BASE}/lines-discovery.json?AccountKey=${TBM_API_KEY}`;
       const res = await fetch(url, {
         headers: { Accept: "application/json" },
-        next: { revalidate: 86400 }, // cache 24h
+        next: { revalidate: 86400 },
       });
       if (!res.ok) return [];
-
       const data = await res.json();
       const raw = data?.Siri?.LinesDelivery?.AnnotatedLineRef ?? [];
-
-      // Filtre : on ne garde que les tram (A/B/C/D/E/F) et les bus principaux (Lianes)
       return raw
         .filter((l: { LineName?: { value: string }[] }) => {
           const name = l.LineName?.[0]?.value ?? "";
@@ -92,9 +155,6 @@ export class TBMAdapter implements IRoutingProvider {
     }
   }
 
-  /**
-   * Récupère tous les arrêts du réseau TBM via SIRI-Lite stoppoints-discovery
-   */
   static async fetchStops(): Promise<TransitStop[]> {
     try {
       const url = `${TBM_BASE}/stoppoints-discovery.json?AccountKey=${TBM_API_KEY}`;
@@ -103,10 +163,8 @@ export class TBMAdapter implements IRoutingProvider {
         next: { revalidate: 86400 },
       });
       if (!res.ok) return [];
-
       const data = await res.json();
       const raw = data?.Siri?.StopPointsDelivery?.AnnotatedStopPointRef ?? [];
-
       return raw
         .map(
           (s: {

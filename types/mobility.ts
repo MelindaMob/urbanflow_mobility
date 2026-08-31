@@ -25,6 +25,8 @@ export type Segment = {
   meta?: {
     lineCode?: string; // ex : "Tram A"
     lineName?: string;
+    fromStopName?: string;
+    toStopName?: string;
   };
 };
 

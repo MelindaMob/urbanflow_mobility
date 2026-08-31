@@ -77,7 +77,9 @@ export default function ItineraryCard({
           return (
             <span key={idx} className="flex items-center gap-1.5">
               <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} aria-hidden="true" />
-              <span className={`font-medium ${meta.color}`}>{meta.label}</span>
+              <span className={`font-medium ${meta.color}`}>
+                {seg.meta?.lineCode ? seg.meta.lineCode : meta.label}
+              </span>
               <span className="text-neutral-500 tabular-nums">
                 {formatDuration(seg.durationS)}
               </span>
@@ -88,6 +90,18 @@ export default function ItineraryCard({
           );
         })}
       </div>
+
+      {itinerary.segments.some((s) => s.meta?.fromStopName) && (
+        <div className="text-xs text-neutral-500 mb-3 space-y-0.5">
+          {itinerary.segments
+            .filter((s) => s.meta?.fromStopName)
+            .map((s, idx) => (
+              <p key={idx}>
+                🚏 {s.meta?.lineName} : {s.meta?.fromStopName} → {s.meta?.toStopName}
+              </p>
+            ))}
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
         <div className="text-xs text-neutral-500">
