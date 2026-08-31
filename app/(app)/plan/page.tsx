@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import AddressInput from "@/components/plan/AddressInput";
+import AddressInput, {
+  type AddressInputHandle,
+} from "@/components/plan/AddressInput";
 import ItineraryCard from "@/components/plan/ItineraryCard";
 import TripGuidance from "@/components/plan/TripGuidance";
 import { planTrip, getTransitStops, saveTrip } from "./actions";
@@ -42,6 +44,10 @@ export default function PlanPage() {
   } | null>(null);
   const [isGuiding, setIsGuiding] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
+  const [originDraft, setOriginDraft] = useState(false);
+  const [destinationDraft, setDestinationDraft] = useState(false);
+  const originInputRef = useRef<AddressInputHandle>(null);
+  const destinationInputRef = useRef<AddressInputHandle>(null);
 
   // Géolocalisation
   useEffect(() => {
@@ -78,7 +84,6 @@ export default function PlanPage() {
   }, []);
 
   async function handleSearch() {
-    if (!origin || !destination) return;
     setIsSearching(true);
     setSearchError(null);
     setItineraries([]);
@@ -86,7 +91,23 @@ export default function PlanPage() {
     setIsGuiding(false);
     setHasArrived(false);
 
-    const result = await planTrip(origin.coord, destination.coord);
+    const resolvedOrigin =
+      (await originInputRef.current?.resolve()) ?? origin;
+    const resolvedDestination =
+      (await destinationInputRef.current?.resolve()) ?? destination;
+
+    if (!resolvedOrigin || !resolvedDestination) {
+      setSearchError(
+        "Sélectionnez ou saisissez un départ et une arrivée valides."
+      );
+      setIsSearching(false);
+      return;
+    }
+
+    const result = await planTrip(
+      resolvedOrigin.coord,
+      resolvedDestination.coord
+    );
 
     if (result.error) {
       setSearchError(result.error);
@@ -116,6 +137,10 @@ export default function PlanPage() {
   const selectedItinerary =
     itineraries.find((it) => it.id === selectedItineraryId) ?? null;
 
+  const canSearch =
+    (Boolean(origin) || originDraft) &&
+    (Boolean(destination) || destinationDraft);
+
   return (
     <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
       <aside className="w-full md:w-[420px] md:shrink-0 bg-white border-b md:border-b-0 md:border-r border-neutral-200 md:max-h-screen md:overflow-y-auto">
@@ -127,19 +152,23 @@ export default function PlanPage() {
 
         <div className="space-y-4">
           <AddressInput
+            ref={originInputRef}
             id="origin"
             label="Départ"
             placeholder="Adresse ou lieu"
             value={origin}
             onChange={setOrigin}
+            onDraftChange={setOriginDraft}
             colorAccent="green"
           />
           <AddressInput
+            ref={destinationInputRef}
             id="destination"
             label="Arrivée"
             placeholder="Adresse ou lieu"
             value={destination}
             onChange={setDestination}
+            onDraftChange={setDestinationDraft}
             colorAccent="orange"
           />
         </div>
@@ -156,7 +185,7 @@ export default function PlanPage() {
         <button
           type="button"
           onClick={handleSearch}
-          disabled={!origin || !destination || isSearching}
+          disabled={!canSearch || isSearching}
           className="mt-6 w-full bg-action-orange text-white font-medium py-2.5 rounded-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
         >
           {isSearching ? "Recherche..." : "Rechercher un itinéraire"}

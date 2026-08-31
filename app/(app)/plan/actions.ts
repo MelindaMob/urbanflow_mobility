@@ -30,6 +30,7 @@ export async function geocodeAddress(
     url.searchParams.set("key", apiKey);
     url.searchParams.set("language", "fr");
     url.searchParams.set("limit", "8");
+    url.searchParams.set("types", "address,place,poi");
     // Bias Bordeaux Métropole (adresses + établissements)
     url.searchParams.set("proximity", "-0.5792,44.8378");
     url.searchParams.set("bbox", "-0.85,44.70,-0.35,45.05");
