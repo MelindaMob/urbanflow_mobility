@@ -12,6 +12,44 @@ const TRANSFER_PENALTY_M = 400;
 const NEAR_STOP_LIMIT = 8;
 const HUB_CANDIDATE_LIMIT = 25;
 
+function readSiriText(field: unknown): string | undefined {
+  if (!field) return undefined;
+  if (typeof field === "string") return field;
+  if (Array.isArray(field)) return readSiriText(field[0]);
+  if (typeof field === "object" && "value" in field) {
+    const value = (field as { value: unknown }).value;
+    return typeof value === "string" ? value : undefined;
+  }
+  return undefined;
+}
+
+function readSiriLineRefs(lines: unknown): string[] {
+  if (!lines) return [];
+  if (Array.isArray(lines)) {
+    return lines
+      .map((item) => readSiriText(item))
+      .filter((ref): ref is string => Boolean(ref));
+  }
+  if (typeof lines === "object" && lines !== null && "LineRef" in lines) {
+    return readSiriLineRefs((lines as { LineRef: unknown }).LineRef);
+  }
+  return [];
+}
+
+function readSiriCoord(location: unknown): Coord | null {
+  if (!location || typeof location !== "object") return null;
+  const loc = location as {
+    latitude?: number;
+    longitude?: number;
+    Latitude?: number;
+    Longitude?: number;
+  };
+  const lat = loc.latitude ?? loc.Latitude;
+  const lng = loc.longitude ?? loc.Longitude;
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  return { lat, lng };
+}
+
 export type FetchResult<T> = {
   data: T;
   error?: string;
@@ -293,14 +331,14 @@ export class TBMAdapter implements IRoutingProvider {
           (l: {
             LineRef?: { value: string };
             LineCode?: { value: string };
-            LineName?: { value: string }[];
+            LineName?: { value: string }[] | { value: string };
           }): TransitLine | null => {
             const ref = l.LineRef?.value;
-            const name = l.LineName?.[0]?.value;
+            const name = readSiriText(l.LineName);
             if (!ref || !name) return null;
             return {
               ref,
-              code: l.LineCode?.value ?? "",
+              code: readSiriText(l.LineCode) ?? "",
               name,
             };
           }
@@ -339,19 +377,24 @@ export class TBMAdapter implements IRoutingProvider {
         .map(
           (s: {
             StopPointRef: { value: string };
-            StopName?: { value: string }[];
-            Location?: { Longitude: number; Latitude: number };
-            Lines?: { LineRef: { value: string }[] };
+            StopName?: { value: string }[] | { value: string };
+            Location?: {
+              longitude?: number;
+              latitude?: number;
+              Longitude?: number;
+              Latitude?: number;
+            };
+            Lines?: { value: string }[] | { LineRef: { value: string }[] };
           }): TransitStop | null => {
-            if (!s.Location) return null;
+            const coord = readSiriCoord(s.Location);
+            if (!coord) return null;
+            const lineRefs = readSiriLineRefs(s.Lines);
+            if (lineRefs.length === 0) return null;
             return {
               id: s.StopPointRef.value,
-              name: s.StopName?.[0]?.value ?? "Arrêt",
-              coord: {
-                lat: s.Location.Latitude,
-                lng: s.Location.Longitude,
-              },
-              lines: (s.Lines?.LineRef ?? []).map((l) => l.value),
+              name: readSiriText(s.StopName) ?? "Arrêt",
+              coord,
+              lines: lineRefs,
             };
           }
         )
