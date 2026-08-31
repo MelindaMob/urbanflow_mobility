@@ -85,7 +85,7 @@ export async function geocodeAddress(
 export async function planTrip(
   origin: Coord,
   destination: Coord
-): Promise<{ itineraries: Itinerary[]; error?: string }> {
+): Promise<{ itineraries: Itinerary[]; error?: string; warning?: string }> {
   const apiKey = process.env.OPENROUTESERVICE_KEY;
   if (!apiKey) {
     return { itineraries: [], error: "Configuration serveur manquante." };
@@ -111,11 +111,11 @@ export async function planTrip(
     }
   }
 
-  // Récupération des vraies données TBM (arrêts + lignes)
-  const [transitStops, transitLines] = await Promise.all([
-    TBMAdapter.fetchStops(),
-    TBMAdapter.fetchLines(),
-  ]);
+  const wantsTransit =
+    acceptedModes.includes("tram") || acceptedModes.includes("bus");
+
+  const { stops: transitStops, lines: transitLines, errors: tbmErrors } =
+    await TBMAdapter.fetchTransitData();
 
   const service = new TripService([new ORSAdapter(apiKey), new TBMAdapter()]);
   const itineraries = await service.computeItineraries({
@@ -126,18 +126,41 @@ export async function planTrip(
     transitLines,
   });
 
+  const hasTransitItinerary = itineraries.some((it) =>
+    it.segments.some((s) => s.mode === "tram" || s.mode === "bus")
+  );
+
+  let warning: string | undefined;
+  if (tbmErrors.length > 0) {
+    warning = tbmErrors.join(" ");
+  } else if (
+    wantsTransit &&
+    acceptedModes.includes("foot") &&
+    !hasTransitItinerary &&
+    transitStops.length > 0 &&
+    transitLines.length > 0
+  ) {
+    warning =
+      "Aucun trajet en transport en commun trouvé pour cet itinéraire (correspondance ou lignes non couvertes).";
+  }
+
   if (itineraries.length === 0) {
+    const tbmHint =
+      tbmErrors.length > 0
+        ? ` ${tbmErrors.join(" ")}`
+        : "";
     return {
       itineraries: [],
-      error: "Aucun itinéraire trouvé. Élargissez vos modes acceptés dans votre profil.",
+      error: `Aucun itinéraire trouvé. Élargissez vos modes acceptés dans votre profil.${tbmHint}`,
     };
   }
 
-  return { itineraries };
+  return { itineraries, warning };
 }
 
 export async function getTransitStops(): Promise<TransitStop[]> {
-  return TBMAdapter.fetchStops();
+  const { data } = await TBMAdapter.fetchStops();
+  return data;
 }
 
 export async function saveTrip(

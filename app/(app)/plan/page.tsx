@@ -37,6 +37,7 @@ export default function PlanPage() {
   );
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchWarning, setSearchWarning] = useState<string | null>(null);
   const [transitStops, setTransitStops] = useState<TransitStop[]>([]);
   const [saveMessage, setSaveMessage] = useState<{
     type: "success" | "error";
@@ -86,6 +87,7 @@ export default function PlanPage() {
   async function handleSearch() {
     setIsSearching(true);
     setSearchError(null);
+    setSearchWarning(null);
     setItineraries([]);
     setSelectedItineraryId(null);
     setIsGuiding(false);
@@ -113,6 +115,7 @@ export default function PlanPage() {
       setSearchError(result.error);
     } else {
       setItineraries(result.itineraries);
+      if (result.warning) setSearchWarning(result.warning);
       if (result.itineraries.length > 0) {
         setSelectedItineraryId(result.itineraries[0].id);
       }
@@ -197,6 +200,15 @@ export default function PlanPage() {
             className="mt-4 text-sm text-action-orange bg-orange-50 p-3 rounded"
           >
             {searchError}
+          </p>
+        )}
+
+        {searchWarning && !searchError && (
+          <p
+            role="status"
+            className="mt-4 text-sm text-neutral-700 bg-neutral-100 p-3 rounded"
+          >
+            {searchWarning}
           </p>
         )}
 

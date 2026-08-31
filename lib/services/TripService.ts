@@ -1,6 +1,6 @@
 import type { Coord, Itinerary, Segment, Mode, TransitStop, TransitLine } from "@/types/mobility";
 import type { IRoutingProvider } from "@/lib/adapters/IRoutingProvider";
-import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
+import { TBMAdapter, type TransitJourney } from "@/lib/adapters/TBMAdapter";
 
 export type ComputeItinerariesInput = {
   origin: Coord;
@@ -37,38 +37,86 @@ export class TripService {
       transitStops.length > 0 &&
       transitLines.length > 0
     ) {
-      const option = TBMAdapter.findBestTransitOption(
+      const journey = TBMAdapter.findBestTransitJourney(
         origin,
         destination,
         transitStops,
         transitLines
       );
 
-      if (option) {
-        const mode: "tram" | "bus" = option.line.name.startsWith("Tram") ? "tram" : "bus";
-
-        const [walkStart, walkEnd] = await Promise.all([
-          this.compute(origin, option.originStop.coord, "foot"),
-          this.compute(option.destStop.coord, destination, "foot"),
-        ]);
-
-        const transitSeg = TBMAdapter.computeTransitSegment(
-          option.originStop,
-          option.destStop,
-          option.line,
-          mode
+      if (journey) {
+        const transitItinerary = await this.buildTransitItinerary(
+          origin,
+          destination,
+          journey,
+          acceptedModes
         );
-
-        if (walkStart && walkEnd) {
-          itineraries.push(
-            this.wrap(`multimodal-${mode}`, [walkStart, transitSeg, walkEnd])
-          );
-        }
+        if (transitItinerary) itineraries.push(transitItinerary);
       }
     }
 
     itineraries.sort((a, b) => a.totalDurationS - b.totalDurationS);
     return itineraries;
+  }
+
+  private async buildTransitItinerary(
+    origin: Coord,
+    destination: Coord,
+    journey: TransitJourney,
+    acceptedModes: Mode[]
+  ): Promise<Itinerary | null> {
+    if (journey.kind === "direct") {
+      const mode = TBMAdapter.lineMode(journey.line);
+      if (!acceptedModes.includes(mode)) return null;
+
+      const [walkStart, walkEnd] = await Promise.all([
+        this.compute(origin, journey.originStop.coord, "foot"),
+        this.compute(journey.destStop.coord, destination, "foot"),
+      ]);
+
+      const transitSeg = TBMAdapter.computeTransitSegment(
+        journey.originStop,
+        journey.destStop,
+        journey.line,
+        mode
+      );
+
+      if (!walkStart || !walkEnd) return null;
+      return this.wrap(`multimodal-${mode}`, [walkStart, transitSeg, walkEnd]);
+    }
+
+    const mode1 = TBMAdapter.lineMode(journey.line1);
+    const mode2 = TBMAdapter.lineMode(journey.line2);
+    if (!acceptedModes.includes(mode1) || !acceptedModes.includes(mode2)) {
+      return null;
+    }
+
+    const [walkStart, walkEnd] = await Promise.all([
+      this.compute(origin, journey.originStop.coord, "foot"),
+      this.compute(journey.destStop.coord, destination, "foot"),
+    ]);
+
+    const transit1 = TBMAdapter.computeTransitSegment(
+      journey.originStop,
+      journey.hubStop,
+      journey.line1,
+      mode1
+    );
+    const transit2 = TBMAdapter.computeTransitSegment(
+      journey.hubStop,
+      journey.destStop,
+      journey.line2,
+      mode2
+    );
+    transit2.durationS += 300;
+
+    if (!walkStart || !walkEnd) return null;
+    return this.wrap("multimodal-transfer", [
+      walkStart,
+      transit1,
+      transit2,
+      walkEnd,
+    ]);
   }
 
   private async compute(from: Coord, to: Coord, mode: Mode): Promise<Segment | null> {
