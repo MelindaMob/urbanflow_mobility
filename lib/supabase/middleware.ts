@@ -31,9 +31,8 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Routes protégées : plan, profile, history, carbon
+  // Routes protégées : profile, history, carbon (plan reste accessible aux visiteurs, cf. UC dossier)
   const isProtectedRoute =
-    pathname.startsWith("/plan") ||
     pathname.startsWith("/profile") ||
     pathname.startsWith("/history") ||
     pathname.startsWith("/carbon");

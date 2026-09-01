@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import AddressInput, {
   type AddressInputHandle,
@@ -261,6 +262,18 @@ export default function PlanPage() {
                 }`}
               >
                 {saveMessage.text}
+                {saveMessage.type === "error" && (
+                  <>
+                    {" "}
+                    —{" "}
+                    <Link
+                      href="/login"
+                      className="underline font-medium"
+                    >
+                      Se connecter
+                    </Link>
+                  </>
+                )}
               </p>
             )}
           </div>

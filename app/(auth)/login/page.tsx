@@ -65,9 +65,12 @@ export default function LoginPage() {
             />
             Se souvenir de moi
           </label>
-          <button type="button" className="text-neutral-500 hover:text-flow-blue transition">
+          <Link
+            href="/forgot-password"
+            className="text-neutral-500 hover:text-flow-blue transition"
+          >
             Mot de passe oublié ?
-          </button>
+          </Link>
         </div>
 
         {error && (
