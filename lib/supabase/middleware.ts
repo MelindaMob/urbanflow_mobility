@@ -37,7 +37,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/history") ||
     pathname.startsWith("/carbon");
 
-  // Routes d'auth
+  // Routes d'auth (y compris welcome, qui sert de porte d'entrée)
   const isAuthRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
@@ -46,11 +46,11 @@ export async function updateSession(request: NextRequest) {
   // Redirection si utilisateur non connecté vers route protégée
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/welcome";
     return NextResponse.redirect(url);
   }
 
-  // Redirection si utilisateur connecté vers route d'auth
+  // Redirection si utilisateur connecté vers route d'auth (login/signup/welcome)
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/plan";

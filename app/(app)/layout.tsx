@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "../(auth)/actions";
 import SidebarNav from "@/components/layout/SidebarNav";
@@ -15,9 +14,11 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  // Le layout ne bloque plus : /plan doit rester accessible aux visiteurs.
+  // Les pages qui nécessitent un compte (profile, history, carbon) gèrent
+  // leur propre redirection si !user.
 
-  const initials = user.email?.slice(0, 2).toUpperCase() ?? "??";
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "??";
 
   return (
     <div className="min-h-screen flex bg-off-white">
@@ -52,26 +53,48 @@ export default async function AppLayout({
 
         <SidebarNav />
 
+        <p className="relative px-6 pb-2">
+          <Link
+            href="/welcome"
+            className="text-xs text-neutral-400 hover:text-mobility-green transition"
+          >
+            À propos d&apos;UrbanFlow
+          </Link>
+        </p>
+
         <div className="relative p-4 mt-auto">
-          <div className="rounded-2xl bg-anthracite text-white p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-mobility-green to-flow-blue flex items-center justify-center text-sm font-bold shrink-0">
-                {initials}
+          {user && (
+            <div className="rounded-2xl bg-anthracite text-white p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-mobility-green to-flow-blue flex items-center justify-center text-sm font-bold shrink-0">
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-white/50 mb-0.5">Connecté</p>
+                  <p className="text-sm font-medium truncate">{user.email}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/50 mb-0.5">Connecté</p>
-                <p className="text-sm font-medium truncate">{user.email}</p>
-              </div>
+              <form action={logout} className="mt-4 pt-3 border-t border-white/10">
+                <button
+                  type="submit"
+                  className="w-full text-left text-xs text-white/60 hover:text-action-orange transition"
+                >
+                  Se déconnecter →
+                </button>
+              </form>
             </div>
-            <form action={logout} className="mt-4 pt-3 border-t border-white/10">
-              <button
-                type="submit"
-                className="w-full text-left text-xs text-white/60 hover:text-action-orange transition"
+          )}
+          {!user && (
+            <div className="rounded-2xl bg-anthracite text-white p-4">
+              <p className="text-sm font-medium mb-3">Mode visiteur</p>
+              <Link
+                href="/welcome"
+                className="block text-center text-xs bg-mobility-green rounded-lg py-2 font-semibold hover:bg-emerald-700 transition"
               >
-                Se déconnecter →
-              </button>
-            </form>
-          </div>
+                Créer un compte
+              </Link>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -80,11 +103,20 @@ export default async function AppLayout({
         <Link href="/plan">
           <Logo withText className="h-7 w-auto" />
         </Link>
-        <form action={logout}>
-          <button type="submit" className="text-xs text-neutral-500 hover:text-action-orange">
-            Déconnexion
-          </button>
-        </form>
+        {user ? (
+          <form action={logout}>
+            <button
+              type="submit"
+              className="text-xs text-neutral-500 hover:text-action-orange"
+            >
+              Déconnexion
+            </button>
+          </form>
+        ) : (
+          <Link href="/welcome" className="text-xs text-mobility-green font-semibold">
+            Se connecter
+          </Link>
+        )}
       </header>
 
       {/* Nav mobile en bas */}

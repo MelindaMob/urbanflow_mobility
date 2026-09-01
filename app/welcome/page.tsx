@@ -99,6 +99,13 @@ export default function WelcomePage() {
               >
                 J&apos;ai déjà un compte
               </Link>
+
+              <Link
+                href="/plan"
+                className="block text-center text-xs text-neutral-400 hover:text-mobility-green transition mt-2"
+              >
+                Essayer sans compte →
+              </Link>
             </div>
 
             {/* Indicateur étapes */}

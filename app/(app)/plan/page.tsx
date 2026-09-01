@@ -266,11 +266,8 @@ export default function PlanPage() {
                   <>
                     {" "}
                     —{" "}
-                    <Link
-                      href="/login"
-                      className="underline font-medium"
-                    >
-                      Se connecter
+                    <Link href="/welcome" className="underline font-medium">
+                      Créer un compte / se connecter
                     </Link>
                   </>
                 )}
