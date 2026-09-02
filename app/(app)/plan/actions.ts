@@ -11,11 +11,13 @@ import { ORSAdapter } from "@/lib/adapters/ORSAdapter";
 import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
 import { TripService } from "@/lib/services/TripService";
 import { createClient } from "@/lib/supabase/server";
+import { geocodeSchema, planTripSchema } from "@/lib/validation";
 
 export async function geocodeAddress(
   query: string
 ): Promise<{ places: GeocodedPlace[]; error?: string }> {
-  if (!query || query.trim().length < 2) {
+  const parsed = geocodeSchema.safeParse({ query });
+  if (!parsed.success) {
     return { places: [] };
   }
 
@@ -25,7 +27,7 @@ export async function geocodeAddress(
   }
 
   try {
-    const encoded = encodeURIComponent(query.trim());
+    const encoded = encodeURIComponent(parsed.data.query);
     const url = new URL(`https://api.maptiler.com/geocoding/${encoded}.json`);
     url.searchParams.set("key", apiKey);
     url.searchParams.set("language", "fr");
@@ -46,7 +48,7 @@ export async function geocodeAddress(
     const data = await response.json();
 
     // MapTiler (format Mapbox-compatible) : place_name + center [lng, lat]
-    const houseMatch = query.trim().match(/^(\d+)\s+/);
+    const houseMatch = parsed.data.query.match(/^(\d+)\s+/);
     const houseNumber = houseMatch?.[1];
 
     const places: GeocodedPlace[] = (data.features || []).map(
@@ -56,7 +58,7 @@ export async function geocodeAddress(
         center?: [number, number];
         geometry?: { coordinates: [number, number] };
       }) => {
-        let label = f.place_name || f.text || query;
+        let label = f.place_name || f.text || parsed.data.query;
         // Si l'utilisateur a tapé un numéro et que le résultat ne le contient pas, on le préfixe
         if (
           houseNumber &&
@@ -86,6 +88,11 @@ export async function planTrip(
   origin: Coord,
   destination: Coord
 ): Promise<{ itineraries: Itinerary[]; error?: string; warning?: string }> {
+  const parsed = planTripSchema.safeParse({ origin, destination });
+  if (!parsed.success) {
+    return { itineraries: [], error: "Coordonnées invalides." };
+  }
+
   const apiKey = process.env.OPENROUTESERVICE_KEY;
   if (!apiKey) {
     return { itineraries: [], error: "Configuration serveur manquante." };
@@ -119,8 +126,8 @@ export async function planTrip(
 
   const service = new TripService([new ORSAdapter(apiKey), new TBMAdapter()]);
   const itineraries = await service.computeItineraries({
-    origin,
-    destination,
+    origin: parsed.data.origin,
+    destination: parsed.data.destination,
     acceptedModes,
     transitStops,
     transitLines,
