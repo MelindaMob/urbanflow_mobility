@@ -11,6 +11,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "UrbanFlow Mobility",
   description: "Plateforme de mobilité urbaine multimodale et durable",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "UrbanFlow",
+  },
+};
+
+export const viewport = {
+  themeColor: "#059669",
 };
 
 export default function RootLayout({

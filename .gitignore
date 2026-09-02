@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Serwist generated service worker
+public/sw.js
+public/swe-worker-*.js
