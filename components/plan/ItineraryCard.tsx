@@ -103,6 +103,12 @@ export default function ItineraryCard({
         </div>
       )}
 
+      {itinerary.segments.some((s) => s.mode === "tram") && (
+        <p className="text-[10px] text-neutral-400 mt-1 mb-3">
+          Réseau tram TBM à quais accessibles PMR (norme NF EN 12183) — accessibilité bus variable selon l&apos;arrêt, non vérifiable via l&apos;API disponible.
+        </p>
+      )}
+
       <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
         <div className="text-xs text-neutral-500">
           <span className="tabular-nums">

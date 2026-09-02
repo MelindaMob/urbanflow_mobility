@@ -106,8 +106,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
             defaultChecked={profile.reduced_mobility}
             className="w-4 h-4 accent-mobility-green"
           />
-          Mobilité réduite (exclut vélo/trottinette, filtre les lignes
-          accessibles PMR)
+          Mobilité réduite (exclut le vélo et la trottinette des itinéraires proposés)
         </label>
       </div>
 
