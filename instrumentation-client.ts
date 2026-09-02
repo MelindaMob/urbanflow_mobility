@@ -14,19 +14,12 @@ Sentry.init({
   tracesSampleRate: 1,
 
   // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
+  replaysSessionSampleRate: 0, // plus de replay en continu — coûteux en data sur connexion mobile variable
 
   // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
+  replaysOnErrorSampleRate: 1.0, // conservé : capture le replay uniquement si une erreur survient
 
-  dataCollection: {
-    // To disable sending user data and HTTP bodies, uncomment the lines below. For more info visit:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#dataCollection
-    // userInfo: false,
-    // httpBodies: [],
-  },
+  dataCollection: {},
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

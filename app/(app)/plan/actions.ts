@@ -39,6 +39,7 @@ export async function geocodeAddress(
 
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json" },
+      next: { revalidate: 60 }, // évite de re-consommer le quota ORS pour la même requête tapée 2x en 1 min
     });
 
     if (!response.ok) {

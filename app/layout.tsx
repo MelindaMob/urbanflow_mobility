@@ -30,6 +30,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={inter.variable}>
+      <head>
+        <link rel="preconnect" href="https://api.maptiler.com" />
+        <link rel="preconnect" href="https://api.openrouteservice.org" />
+        <link rel="preconnect" href="https://bdx.mecatran.com" />
+        <link rel="dns-prefetch" href="https://api.maptiler.com" />
+      </head>
       <body className="bg-off-white text-anthracite font-sans antialiased">
         {children}
       </body>
