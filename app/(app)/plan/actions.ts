@@ -5,7 +5,7 @@ import type {
   GeocodedPlace,
   Itinerary,
   Mode,
-  TransitStop,
+  TransitStopDisplay,
 } from "@/types/mobility";
 import { ORSAdapter } from "@/lib/adapters/ORSAdapter";
 import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
@@ -165,9 +165,12 @@ export async function planTrip(
   return { itineraries, warning };
 }
 
-export async function getTransitStops(): Promise<TransitStop[]> {
+export async function getTransitStops(): Promise<TransitStopDisplay[]> {
   const { data } = await TBMAdapter.fetchStops();
-  return data;
+  // On ne renvoie au client que ce qui sert à l'affichage — le champ
+  // `lines` ne sert qu'au calcul serveur (findBestTransitOption) et
+  // alourdirait inutilement la réponse pour ~3900 arrêts (éco-conception, C5).
+  return data.map(({ id, name, coord }) => ({ id, name, coord }));
 }
 
 export async function saveTrip(

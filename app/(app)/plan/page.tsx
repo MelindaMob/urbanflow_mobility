@@ -13,7 +13,7 @@ import type {
   Coord,
   GeocodedPlace,
   Itinerary,
-  TransitStop,
+  TransitStopDisplay,
 } from "@/types/mobility";
 
 const MapView = dynamic(() => import("@/components/map/MapView"), {
@@ -24,6 +24,8 @@ const MapView = dynamic(() => import("@/components/map/MapView"), {
     </div>
   ),
 });
+
+let transitStopsCache: TransitStopDisplay[] | null = null;
 
 export default function PlanPage() {
   const [origin, setOrigin] = useState<GeocodedPlace | null>(null);
@@ -39,7 +41,7 @@ export default function PlanPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchWarning, setSearchWarning] = useState<string | null>(null);
-  const [transitStops, setTransitStops] = useState<TransitStop[]>([]);
+  const [transitStops, setTransitStops] = useState<TransitStopDisplay[]>([]);
   const [saveMessage, setSaveMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -82,7 +84,14 @@ export default function PlanPage() {
 
   // Charger les arrêts TBM au montage
   useEffect(() => {
-    getTransitStops().then(setTransitStops);
+    if (transitStopsCache) {
+      setTransitStops(transitStopsCache);
+      return;
+    }
+    getTransitStops().then((stops) => {
+      transitStopsCache = stops;
+      setTransitStops(stops);
+    });
   }, []);
 
   async function handleSearch() {

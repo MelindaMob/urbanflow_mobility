@@ -48,6 +48,10 @@ export type TransitStop = {
   lines: string[]; // ex : ["A", "B"]
 };
 
+// Version allégée d'un arrêt, pour l'affichage carte côté client
+// (sans le tableau `lines`, inutile pour un marqueur)
+export type TransitStopDisplay = Pick<TransitStop, "id" | "name" | "coord">;
+
 export type TransitLine = {
   ref: string; // ex : "bordeaux:Line:59:LOC"
   code: string; // ex : "A"

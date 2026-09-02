@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl, { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Coord, Itinerary, Mode, TransitStop } from "@/types/mobility";
+import type { Coord, Itinerary, Mode, TransitStopDisplay } from "@/types/mobility";
 
 const BORDEAUX_CENTER: [number, number] = [-0.5709, 44.841];
 const DEFAULT_ZOOM = 12;
@@ -22,7 +22,7 @@ type MapViewProps = {
   destination?: Coord | null;
   userLocation?: Coord | null;
   itinerary?: Itinerary | null;
-  transitStops?: TransitStop[];
+  transitStops?: TransitStopDisplay[];
 };
 
 export default function MapView({
