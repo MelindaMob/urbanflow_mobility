@@ -22,6 +22,12 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen flex bg-off-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-4 focus:left-4 focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:text-anthracite"
+      >
+        Aller au contenu principal
+      </a>
       {/* Sidebar desktop — style clair, cartes */}
       <aside className="hidden md:flex md:flex-col w-72 shrink-0 bg-white border-r border-neutral-200 relative overflow-hidden">
         {/* Accent vertical dégradé */}
@@ -77,7 +83,7 @@ export default async function AppLayout({
               <form action={logout} className="mt-4 pt-3 border-t border-white/10">
                 <button
                   type="submit"
-                  className="w-full text-left text-xs text-white/60 hover:text-action-orange transition"
+                  className="w-full text-left text-xs text-white/60 hover:text-action-orange-text transition"
                 >
                   Se déconnecter →
                 </button>
@@ -107,7 +113,7 @@ export default async function AppLayout({
           <form action={logout}>
             <button
               type="submit"
-              className="text-xs text-neutral-500 hover:text-action-orange"
+              className="text-xs text-neutral-500 hover:text-action-orange-text"
             >
               Déconnexion
             </button>
@@ -127,7 +133,7 @@ export default async function AppLayout({
         <MobileNavLink href="/profile" label="Profil" />
       </nav>
 
-      <main className="flex-1 pt-14 pb-16 md:pt-0 md:pb-0 min-h-0">
+      <main id="main-content" className="flex-1 pt-14 pb-16 md:pt-0 md:pb-0 min-h-0">
         {children}
       </main>
     </div>

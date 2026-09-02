@@ -207,7 +207,7 @@ export default function PlanPage() {
         {searchError && (
           <p
             role="alert"
-            className="mt-4 text-sm text-action-orange bg-orange-50 p-3 rounded"
+            className="mt-4 text-sm text-action-orange-text bg-orange-50 p-3 rounded"
           >
             {searchError}
           </p>
@@ -223,6 +223,13 @@ export default function PlanPage() {
         )}
 
         {/* Résultats */}
+        <div role="status" aria-live="polite" className="sr-only">
+          {isSearching && "Recherche d'itinéraires en cours."}
+          {!isSearching &&
+            itineraries.length > 0 &&
+            `${itineraries.length} itinéraire${itineraries.length > 1 ? "s" : ""} trouvé${itineraries.length > 1 ? "s" : ""}.`}
+          {!isSearching && searchError && searchError}
+        </div>
         {itineraries.length > 0 && (
           <div className="mt-6 space-y-3">
             <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
@@ -267,7 +274,7 @@ export default function PlanPage() {
                 className={`mt-2 text-sm ${
                   saveMessage.type === "success"
                     ? "text-mobility-green"
-                    : "text-action-orange"
+                    : "text-action-orange-text"
                 }`}
               >
                 {saveMessage.text}

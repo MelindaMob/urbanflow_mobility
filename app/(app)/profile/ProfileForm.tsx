@@ -136,7 +136,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           className={`text-sm ${
             message.type === "success"
               ? "text-mobility-green"
-              : "text-action-orange"
+              : "text-action-orange-text"
           }`}
         >
           {message.text}

@@ -4,6 +4,7 @@
   --color-mobility-green: #059669;
   --color-flow-blue: #0284C7;
   --color-action-orange: #EA580C;
+  --color-action-orange-text: #C2410C; /* AA-compliant pour texte (5.2:1 sur blanc), le orange clair reste réservé aux boutons/fonds */
   --color-anthracite: #1F2937;
   --color-off-white: #F9FAFB;
 }
@@ -265,5 +266,14 @@
   .welcome-route-origin {
     animation: none;
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -133,7 +133,7 @@ export default function TripGuidance({
       {gpsError && (
         <p
           role="alert"
-          className="mt-2 text-xs text-action-orange bg-orange-50 p-2 rounded"
+          className="mt-2 text-xs text-action-orange-text bg-orange-50 p-2 rounded"
         >
           {gpsError}
         </p>
