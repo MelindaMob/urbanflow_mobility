@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+
 /**
  * Import quotidien du GTFS statique TBM dans gtfs_lines / gtfs_stops.
  *
@@ -124,15 +127,17 @@ async function main() {
   }
 
   const stopRows = stops
-    .filter((s) => s.stop_id && s.stop_lat && s.stop_lon)
+    .filter((s) => {
+      if (!s.stop_id || !s.stop_lat || !s.stop_lon) return false;
+      return Number.isFinite(Number(s.stop_lat)) && Number.isFinite(Number(s.stop_lon));
+    })
     .map((s) => ({
       stop_id: s.stop_id,
-      stop_name: s.stop_name || null,
-      lat: Number(s.stop_lat),
-      lng: Number(s.stop_lon),
+      stop_name: s.stop_name || "Arrêt",
+      geom: `SRID=4326;POINT(${s.stop_lon} ${s.stop_lat})`,
       route_ids: Array.from(stopRoutes.get(s.stop_id) ?? []),
-    }))
-    .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+      updated_at: new Date().toISOString(),
+    }));
 
   console.log(`Lignes : ${lines.length}, arrêts : ${stopRows.length}`);
 
