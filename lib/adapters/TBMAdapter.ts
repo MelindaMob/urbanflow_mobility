@@ -84,6 +84,12 @@ export class TBMAdapter implements IRoutingProvider {
   }
 
   static lineMode(line: TransitLine): "tram" | "bus" {
+    // route_type est le champ standard GTFS (0 = tram/light rail, 3 = bus).
+    // Fiable quand la donnée vient de l'import GTFS (cf. fetchTransitDataFromDb).
+    if (line.routeType === 0) return "tram";
+    if (line.routeType === 3) return "bus";
+    // Fallback historique pour compatibilité avec les données SIRI live
+    // (fetchTransitData), qui n'ont pas de routeType.
     return line.name.startsWith("Tram") ? "tram" : "bus";
   }
 

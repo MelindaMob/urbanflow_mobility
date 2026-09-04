@@ -56,4 +56,5 @@ export type TransitLine = {
   ref: string; // ex : "bordeaux:Line:59:LOC"
   code: string; // ex : "A"
   name: string; // ex : "Tram A"
+  routeType?: number; // 0 = tram, 3 = bus (GTFS route_type standard)
 };

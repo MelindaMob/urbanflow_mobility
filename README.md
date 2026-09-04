@@ -29,6 +29,15 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## CI — import GTFS quotidien
+
+Le workflow `.github/workflows/gtfs-import.yml` télécharge le GTFS statique TBM et l’écrit dans les tables `gtfs_lines` / `gtfs_stops` (tous les jours à 04:00 UTC, ou manuellement via *workflow_dispatch*).
+
+Il nécessite deux secrets GitHub à configurer **manuellement** dans *Settings > Secrets and variables > Actions* du dépôt :
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

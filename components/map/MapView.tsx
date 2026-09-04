@@ -39,6 +39,9 @@ export default function MapView({
   const userMarkerRef = useRef<Marker | null>(null);
   const routeSourceIdsRef = useRef<string[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const [vehicles, setVehicles] = useState<
+    { id: string; lat: number; lng: number }[]
+  >([]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -190,6 +193,95 @@ export default function MapView({
       },
     });
   }, [transitStops, mapReady]);
+
+  // Positions véhicules TBM (GTFS-RT), rafraîchies toutes les 12 s
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadVehicles = async () => {
+      try {
+        const res = await fetch("/api/vehicle-positions");
+        const data = (await res.json()) as {
+          positions?: unknown;
+        };
+        if (cancelled) return;
+        if (!res.ok || !Array.isArray(data.positions)) {
+          setVehicles([]);
+          return;
+        }
+        const next = data.positions.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const p = item as { id?: unknown; lat?: unknown; lng?: unknown };
+          if (
+            typeof p.id !== "string" ||
+            typeof p.lat !== "number" ||
+            typeof p.lng !== "number" ||
+            !Number.isFinite(p.lat) ||
+            !Number.isFinite(p.lng)
+          ) {
+            return [];
+          }
+          return [{ id: p.id, lat: p.lat, lng: p.lng }];
+        });
+        setVehicles(next);
+      } catch {
+        if (!cancelled) setVehicles([]);
+      }
+    };
+
+    loadVehicles();
+    const intervalId = setInterval(loadVehicles, 12_000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  // Affichage des véhicules TBM
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const sourceId = "tbm-vehicles";
+    const layerId = "tbm-vehicles-layer";
+
+    const collection = {
+      type: "FeatureCollection" as const,
+      features: vehicles.map((vehicle) => ({
+        type: "Feature" as const,
+        properties: { id: vehicle.id },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [vehicle.lng, vehicle.lat],
+        },
+      })),
+    };
+
+    const existing = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(collection);
+      return;
+    }
+
+    map.addSource(sourceId, {
+      type: "geojson",
+      data: collection,
+    });
+
+    map.addLayer({
+      id: layerId,
+      type: "circle",
+      source: sourceId,
+      minzoom: 11,
+      paint: {
+        "circle-radius": 8,
+        "circle-color": "#EA580C",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.5,
+        "circle-opacity": 0.9,
+      },
+    });
+  }, [vehicles, mapReady]);
 
   // Tracé de l'itinéraire
   useEffect(() => {

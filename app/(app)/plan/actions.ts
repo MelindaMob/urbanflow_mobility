@@ -7,6 +7,7 @@ import type {
   Mode,
   TransitStopDisplay,
 } from "@/types/mobility";
+import { fetchTransitDataWithFallback } from "@/lib/adapters/fetchTransitDataFromDb";
 import { ORSAdapter } from "@/lib/adapters/ORSAdapter";
 import { TBMAdapter } from "@/lib/adapters/TBMAdapter";
 import { TripService } from "@/lib/services/TripService";
@@ -122,8 +123,16 @@ export async function planTrip(
   const wantsTransit =
     acceptedModes.includes("tram") || acceptedModes.includes("bus");
 
-  const { stops: transitStops, lines: transitLines, errors: tbmErrors } =
-    await TBMAdapter.fetchTransitData();
+  const {
+    stops: transitStops,
+    lines: transitLines,
+    errors: tbmErrors,
+    source: transitSource,
+  } = await fetchTransitDataWithFallback(supabase);
+
+  if (transitSource === "siri-fallback") {
+    console.warn("planTrip: référentiel TBM servi via fallback SIRI live (base GTFS indisponible).");
+  }
 
   const service = new TripService([new ORSAdapter(apiKey), new TBMAdapter()]);
   const itineraries = await service.computeItineraries({
