@@ -113,11 +113,48 @@ async function main() {
     }
   }
 
+  // 🔍 DEBUG — à retirer une fois le bug trouvé
+  console.log(`[debug] trips.txt : ${trips.length} lignes brutes`);
+  console.log(`[debug] tripToRoute : ${tripToRoute.size} entrées`);
+  console.log(`[debug] exemple trip brut :`, trips[0]);
+  // #region agent log
+  fetch("http://127.0.0.1:7860/ingest/f68b4835-f2e4-46d1-a86f-0aad26d2b5a1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "299942",
+    },
+    body: JSON.stringify({
+      sessionId: "299942",
+      runId: "pre-fix",
+      hypothesisId: "C",
+      location: "scripts/import-gtfs.ts:tripToRoute",
+      message: "trips.txt parse + tripToRoute size",
+      data: {
+        tripsLength: trips.length,
+        tripToRouteSize: tripToRoute.size,
+        tripKeys: trips[0] ? Object.keys(trips[0]) : [],
+        sampleTripId: trips[0]?.trip_id ?? null,
+        sampleRouteId: trips[0]?.route_id ?? null,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
   const stopRoutes = new Map<string, Set<string>>();
+  let skippedMissingIds = 0;
+  let skippedNoTrip = 0;
   for (const row of stopTimes) {
-    if (!row.stop_id || !row.trip_id) continue;
+    if (!row.stop_id || !row.trip_id) {
+      skippedMissingIds += 1;
+      continue;
+    }
     const routeId = tripToRoute.get(row.trip_id);
-    if (!routeId) continue;
+    if (!routeId) {
+      skippedNoTrip += 1;
+      continue;
+    }
     let set = stopRoutes.get(row.stop_id);
     if (!set) {
       set = new Set();
@@ -125,6 +162,39 @@ async function main() {
     }
     set.add(routeId);
   }
+
+  // 🔍 DEBUG — à retirer une fois le bug trouvé
+  console.log(`[debug] stop_times.txt : ${stopTimes.length} lignes brutes`);
+  console.log(`[debug] exemple stop_time brut :`, stopTimes[0]);
+  console.log(
+    `[debug] stopRoutes : ${stopRoutes.size} arrêts avec au moins 1 ligne`
+  );
+  // #region agent log
+  fetch("http://127.0.0.1:7860/ingest/f68b4835-f2e4-46d1-a86f-0aad26d2b5a1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "299942",
+    },
+    body: JSON.stringify({
+      sessionId: "299942",
+      runId: "pre-fix",
+      hypothesisId: "A-B-E",
+      location: "scripts/import-gtfs.ts:stopRoutes",
+      message: "stop_times parse + join trip_id→route_id",
+      data: {
+        stopTimesLength: stopTimes.length,
+        stopTimeKeys: stopTimes[0] ? Object.keys(stopTimes[0]) : [],
+        sampleStopId: stopTimes[0]?.stop_id ?? null,
+        sampleTripId: stopTimes[0]?.trip_id ?? null,
+        skippedMissingIds,
+        skippedNoTrip,
+        stopRoutesSize: stopRoutes.size,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const stopRows = stops
     .filter((s) => {
@@ -137,7 +207,38 @@ async function main() {
       geom: `SRID=4326;POINT(${s.stop_lon} ${s.stop_lat})`,
       route_ids: Array.from(stopRoutes.get(s.stop_id) ?? []),
       updated_at: new Date().toISOString(),
-    }));
+    }))
+    .filter((s) => s.route_ids.length > 0);
+
+  const stopRowsWithRoutes = stopRows.filter((s) => s.route_ids.length > 0).length;
+  // 🔍 DEBUG — à retirer une fois le bug trouvé
+  console.log(
+    `[debug] stopRows : ${stopRows.length} arrêts, dont ${stopRowsWithRoutes} avec route_ids non vide`
+  );
+  // #region agent log
+  fetch("http://127.0.0.1:7860/ingest/f68b4835-f2e4-46d1-a86f-0aad26d2b5a1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "299942",
+    },
+    body: JSON.stringify({
+      sessionId: "299942",
+      runId: "pre-fix",
+      hypothesisId: "D",
+      location: "scripts/import-gtfs.ts:stopRows",
+      message: "stop_id match between stops.txt and stopRoutes",
+      data: {
+        stopsLength: stops.length,
+        stopRowsLength: stopRows.length,
+        stopRowsWithRoutes,
+        sampleStopId: stopRows[0]?.stop_id ?? null,
+        sampleStopRouteCount: stopRows[0]?.route_ids.length ?? null,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   console.log(`Lignes : ${lines.length}, arrêts : ${stopRows.length}`);
 
